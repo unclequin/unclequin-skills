@@ -1,0 +1,15 @@
+{
+  "name": "unclequin-skills",
+  "description": "Agent skills by unclequin",
+  "owner": {
+    "name": "unclequin"
+  },
+  "plugins": [
+    {
+      "name": "unix-philosophy",
+      "source": "./",
+      "description": "Apply the Unix philosophy when designing, writing, refactoring, or reviewing code, with idioms for Go, TypeScript, Python, Java/Kotlin, Rust, Haskell, and Lean 4",
+      "skills": ["./skills/unix-philosophy"]
+    }
+  ]
+}

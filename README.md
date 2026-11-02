@@ -11,6 +11,8 @@ Agent skills for [Claude](https://claude.com) and Claude Code.
 ## Layout
 
 ```
+.claude-plugin/
+  marketplace.json          # Claude Code plugin marketplace: one plugin per skill
 skills/
   unix-philosophy/
     SKILL.md                # entry point: when to use it and how to apply it
@@ -21,6 +23,26 @@ templates/
 ```
 
 ## Install
+
+### As a Claude Code plugin
+
+This repository is a Claude Code plugin marketplace. Each skill is its own plugin. In a Claude Code session, install one in a single step:
+
+```
+/plugin install unix-philosophy --marketplace unclequin/unclequin-skills
+```
+
+Or add the marketplace once from your shell, then install skills by name:
+
+```bash
+claude plugin marketplace add unclequin/unclequin-skills
+```
+
+```bash
+claude plugin install unix-philosophy@unclequin-skills
+```
+
+Plugin skills are namespaced by plugin, so the skill runs as `/unix-philosophy:unix-philosophy`. Claude also picks it up on its own when a task matches. Run `claude plugin marketplace update unclequin-skills` to get new versions.
 
 ### With npx
 
@@ -64,3 +86,7 @@ To add a language to `unix-philosophy`:
 
 1. Add `skills/unix-philosophy/references/languages/<language>.md`, following the structure of the existing files.
 2. List it under "Reference files" in [`skills/unix-philosophy/SKILL.md`](skills/unix-philosophy/SKILL.md) and in the skill's `description`.
+
+## Adding a skill
+
+Put it in `skills/<name>/SKILL.md`, then add a plugin entry for it to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) with `"source": "./"` and `"skills": ["./skills/<name>"]`. Check the result with `claude plugin validate .`.
