@@ -6,11 +6,14 @@ Claude skills and project templates for software development, based on the Unix 
 
 ```
 unclequin-skills/
-├── unix-philosophy/          # Skill: design rules + idiomatic examples per language
-│   ├── SKILL.md
-│   └── references/
-│       ├── rules.md
-│       └── languages/        # go, typescript, python, java, rust, haskell, lean4
+├── .claude-plugin/
+│   └── marketplace.json      # Claude Code plugin marketplace: one plugin per skill
+├── skills/
+│   └── unix-philosophy/      # Skill: design rules + idiomatic examples per language
+│       ├── SKILL.md
+│       └── references/
+│           ├── rules.md
+│           └── languages/    # go, typescript, python, java, rust, haskell, lean4
 └── templates/
     └── CLAUDE.md             # Short, always-on project rules (works without the skill)
 ```
@@ -66,12 +69,42 @@ Tips:
 
 ## Option B: Install the skill
 
-### Claude Code, for all your projects
+### Claude Code plugin (recommended)
+
+This repo is a Claude Code plugin marketplace, and each skill is its own plugin. In a Claude Code session, install it in one step:
+
+```
+/plugin install unix-philosophy --marketplace unclequin/unclequin-skills
+```
+
+Or from your shell, add the marketplace once and then install by name:
+
+```bash
+claude plugin marketplace add unclequin/unclequin-skills
+```
+
+```bash
+claude plugin install unix-philosophy@unclequin-skills
+```
+
+Plugin skills are namespaced by plugin, so you can run it as `/unix-philosophy:unix-philosophy`. Claude also uses it on its own when a task matches. To get updates, run `claude plugin marketplace update unclequin-skills`.
+
+### npx
+
+The [`skills`](https://github.com/vercel-labs/skills) CLI (Node.js 22.20 or later) installs skills into Claude Code and other coding agents:
+
+```bash
+npx skills add unclequin/unclequin-skills --skill unix-philosophy -a claude-code -g
+```
+
+`-g` installs it for all your projects. Leave it off to install into the current project only.
+
+### Manually, for all your projects
 
 ```bash
 git clone https://github.com/unclequin/unclequin-skills.git ~/unclequin-skills
 mkdir -p ~/.claude/skills
-ln -s ~/unclequin-skills/unix-philosophy ~/.claude/skills/unix-philosophy
+ln -s ~/unclequin-skills/skills/unix-philosophy ~/.claude/skills/unix-philosophy
 ```
 
 To get updates later, run `git pull` in `~/unclequin-skills`. The symlink picks up the changes.
@@ -79,21 +112,25 @@ To get updates later, run `git pull` in `~/unclequin-skills`. The symlink picks 
 On Windows, copy the folder instead of linking it:
 
 ```powershell
-Copy-Item -Recurse $HOME\unclequin-skills\unix-philosophy $HOME\.claude\skills\unix-philosophy
+Copy-Item -Recurse $HOME\unclequin-skills\skills\unix-philosophy $HOME\.claude\skills\unix-philosophy
 ```
 
-### Claude Code, for one project only
+### Manually, for one project only
 
 Put the skill inside the project and commit it, so everyone who works on the project gets it:
 
 ```bash
 mkdir -p /path/to/your-project/.claude/skills
-cp -r unix-philosophy /path/to/your-project/.claude/skills/
+cp -r skills/unix-philosophy /path/to/your-project/.claude/skills/
 ```
 
 ### Claude.ai
 
-Zip the `unix-philosophy` folder and upload it as a custom skill in your Claude settings.
+Zip the `skills/unix-philosophy` folder and upload it as a custom skill in your Claude settings:
+
+```bash
+cd skills && zip -r unix-philosophy.zip unix-philosophy
+```
 
 ## Option C: Both
 
@@ -104,12 +141,16 @@ Copy `templates/CLAUDE.md` into the project (Option A) and install the skill (Op
 When a skill changes:
 
 ```bash
-git add unix-philosophy templates
+git add skills templates
 git commit -m "Describe the change"
 git push
 ```
 
 If you change a rule in the skill, check whether `templates/CLAUDE.md` needs the same change, so the two don't disagree.
+
+To add a new skill, put it in `skills/<name>/SKILL.md`, then add a plugin entry for it to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) with `"source": "./"` and `"skills": ["./skills/<name>"]`. Check the result with `claude plugin validate .`.
+
+Edit files in this repo directly. Copying in an older zip or download of the repo brings back old paths, such as `unix-philosophy/` at the root instead of `skills/unix-philosophy/`.
 
 ## Credits
 
