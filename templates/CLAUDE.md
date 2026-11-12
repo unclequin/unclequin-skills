@@ -1,6 +1,6 @@
 # Engineering principles (Unix philosophy)
 
-This project follows the Unix philosophy in every language it uses. Apply it to every design, change, and review. For detailed rules and idiomatic examples per language, use the `unix-philosophy` skill.
+This project follows the Unix philosophy in every language it uses. Apply it to every design, change, and review. The rules below are complete on their own. If the `unix-philosophy` skill is installed, use it for detailed explanations and idiomatic examples per language.
 
 Always express these principles in the idioms of the language you are working in. Don't carry patterns from one language into another.
 
