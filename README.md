@@ -1,6 +1,6 @@
 # unclequin-skills
 
-Claude skills and project templates for software development, based on the Unix philosophy. They work across Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, and Lean 4.
+Claude skills and project templates for software development, based on the Unix philosophy and on functional-first programming. They work across Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, and Lean 4, and `functional-first` also covers C.
 
 ## What's in this repo
 
@@ -9,11 +9,19 @@ unclequin-skills/
 ├── .claude-plugin/
 │   └── marketplace.json      # Claude Code plugin marketplace: one plugin per skill
 ├── skills/
-│   └── unix-philosophy/      # Skill: design rules + idiomatic examples per language
-│       ├── SKILL.md
+│   ├── unix-philosophy/      # Skill: design rules + idiomatic examples per language
+│   │   ├── SKILL.md
+│   │   └── references/
+│   │       ├── rules.md
+│   │       └── languages/    # go, typescript, python, java, rust, haskell, lean4
+│   └── functional-first/     # Skill: from a real-world problem to correct code
+│       ├── SKILL.md          # the five-step workflow
 │       └── references/
-│           ├── rules.md
-│           └── languages/    # go, typescript, python, java, rust, haskell, lean4
+│           ├── modeling.md   # sets for rules, state machines for lifecycles
+│           ├── composition.md
+│           ├── derivation.md # spec to fast code, and the behavior traps
+│           ├── testing.md    # the spec as test oracle, property-based tests
+│           └── languages/    # go, typescript, python, java, rust, haskell, lean4, c
 └── templates/
     └── CLAUDE.md             # Short, always-on project rules (works without the skill)
 ```
@@ -22,7 +30,9 @@ unclequin-skills/
 |------|--------|--------------|
 | `unix-philosophy` | Ready | Design and review guidance: Raymond's 17 rules, McIlroy, Rob Pike, with examples for 7 languages |
 | `templates/CLAUDE.md` | Ready | The core rules in one short file for a project's root |
-| `functional-first` | Planned | Method for going from a real-world problem to correct code: say it, model it (sets, state machines), compose it, derive it, check it |
+| `functional-first` | Ready | Method for going from a real-world problem to correct code: say it, model it (sets, state machines), compose it, derive it, check it. Examples for 8 languages, including C |
+
+The two skills split by level. `unix-philosophy` covers the design of a system: modules, interfaces, and failure reporting. `functional-first` covers the method inside a feature or function: business rules, reports, lifecycles, and making correct code fast without changing its behavior. They point to each other rather than repeating each other.
 
 ## Two ways to use it
 
@@ -67,11 +77,13 @@ Tips:
 - For private notes in one project that shouldn't be committed, use `CLAUDE.local.md` in that project's root.
 - The template works without the skill. If the skill is installed, Claude uses it for the detailed explanations.
 
-## Option B: Install the skill
+## Option B: Install the skills
+
+The commands below use `unix-philosophy`. To install `functional-first`, use the same commands with `functional-first` in its place.
 
 ### Claude Code plugin (recommended)
 
-This repo is a Claude Code plugin marketplace, and each skill is its own plugin. In a Claude Code session, install it in one step:
+This repo is a Claude Code plugin marketplace, and each skill is its own plugin. In a Claude Code session, install one in a single step:
 
 ```
 /plugin install unix-philosophy --marketplace unclequin/unclequin-skills
@@ -87,7 +99,11 @@ claude plugin marketplace add unclequin/unclequin-skills
 claude plugin install unix-philosophy@unclequin-skills
 ```
 
-Plugin skills are namespaced by plugin, so you can run it as `/unix-philosophy:unix-philosophy`. Claude also uses it on its own when a task matches. To get updates, run `claude plugin marketplace update unclequin-skills`.
+```bash
+claude plugin install functional-first@unclequin-skills
+```
+
+Plugin skills are namespaced by plugin, so you can run one as `/unix-philosophy:unix-philosophy` or `/functional-first:functional-first`. Claude also uses them on its own when a task matches. To get updates, run `claude plugin marketplace update unclequin-skills`.
 
 ### npx
 
@@ -157,6 +173,6 @@ Edit files in this repo directly. Copying in an older zip or download of the rep
 - Eric S. Raymond, *The Art of Unix Programming* (2003), "Basics of the Unix Philosophy"
 - Doug McIlroy's summary of the Unix philosophy
 - Rob Pike's rules of programming
-- The planned `functional-first` skill is inspired by the method in Pieter Hartel and Henk Muller, *Functional C* (Addison-Wesley, 1997)
+- The `functional-first` skill is inspired by the method in Pieter Hartel and Henk Muller, *Functional C* (Addison-Wesley, 1997). Its transformation catalog draws on Burstall and Darlington's fold/unfold work (1977) and the Bird–Meertens formalism
 
 All explanations and examples in this repo are written in our own words.

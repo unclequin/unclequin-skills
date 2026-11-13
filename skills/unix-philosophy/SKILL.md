@@ -11,6 +11,8 @@ The rules are language-independent. What changes between languages is *how* each
 
 Use this skill as a lens, not a rulebook. The rules sometimes pull against each other (Economy vs. Optimization, Extensibility vs. Simplicity). When they conflict, prefer the choice that a tired engineer can understand and debug at 3 a.m.
 
+This skill covers design: how to split a system and what its interfaces look like. For the method inside a function or feature (modeling business rules as sets and lifecycles as state machines, composing a pure spec, deriving fast code from it, and property testing), use the `functional-first` skill.
+
 ## Reference files
 
 - `references/rules.md`: all 17 rules with language-neutral explanations and red flags. Read it for design or code reviews, or when you need to explain *why* a change is better.
