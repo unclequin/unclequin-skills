@@ -51,6 +51,27 @@ You can use the skill, the CLAUDE.md template, or both. They load differently:
 | Code reviews, design work, or multi-language projects where detailed examples help | Skill |
 | Main team projects | Both: CLAUDE.md for the short always-on rules, the skill for detail when needed |
 
+### Using both skills in one prompt
+
+Claude picks skills by matching your request to each skill's description, and it can load more than one in the same turn. A request that touches both levels, such as a new module plus its business rules, usually triggers both on its own.
+
+To make sure, name them in the prompt. Plain words work:
+
+```
+Use the unix-philosophy and functional-first skills. Add a billing module:
+it computes monthly revenue from paid orders, except refunded ones, and
+exposes it through the existing HTTP API.
+```
+
+A message can start with only one slash command, so invoke one skill with the command and name the other in the text:
+
+```
+/unix-philosophy:unix-philosophy Design the billing module's interface,
+then use the functional-first skill to implement the revenue rule.
+```
+
+The two skills split the work by level: `unix-philosophy` decides the parts and their interfaces, then `functional-first` builds the code inside each part. To have Claude do this on every task without being asked, use the CLAUDE.md template (Option C): its first paragraph tells Claude when to use each skill.
+
 ## Option A: CLAUDE.md only
 
 No installation needed. The rules travel with the project's code.
@@ -150,7 +171,9 @@ cd skills && zip -r unix-philosophy.zip unix-philosophy
 
 ## Option C: Both
 
-Copy `templates/CLAUDE.md` into the project (Option A) and install the skill (Option B). CLAUDE.md keeps the core rules active in every session, and the skill adds per-language examples and the full review format when the task calls for them.
+Copy `templates/CLAUDE.md` into the project (Option A) and install both skills (Option B). CLAUDE.md keeps the core rules active in every session and tells Claude which skill to use for which part of a task. The skills add the full workflow, per-language examples, and the review format when the task calls for them.
+
+The template covers both skills in about 700 words. If a project only needs one, delete the other's section ("Building a feature" is functional-first; the rest is unix-philosophy) to save context in every session.
 
 ## Updating this repo
 
