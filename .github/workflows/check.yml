@@ -19,3 +19,19 @@ jobs:
       # scripts/check.py calls `claude plugin validate`, which needs the CLI.
       - run: npm install --global @anthropic-ai/claude-code
       - run: python3 scripts/check.py
+
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global @anthropic-ai/claude-code
+      # A pull request installs from its own checkout, so the change under
+      # review is what gets tested. A push to main installs from GitHub,
+      # exactly as the README tells users to.
+      - if: github.event_name == 'pull_request'
+        run: scripts/install-test.sh "$GITHUB_WORKSPACE"
+      - if: github.event_name == 'push'
+        run: scripts/install-test.sh
