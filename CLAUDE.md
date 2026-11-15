@@ -6,6 +6,10 @@ Instructions for agents working on this repository. This is not the shipped rule
 
 Run `scripts/check.py` before committing; CI runs it on every pull request.
 
+## Review
+
+When reviewing a change here, apply the root `CODING_STANDARDS.md`. `templates/CODING_STANDARDS.md` is the shipped one, for users' projects.
+
 ## Agent skills
 
 ### Issue tracker
