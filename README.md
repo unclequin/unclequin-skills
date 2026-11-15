@@ -23,7 +23,8 @@ unclequin-skills/
 │           ├── testing.md    # the spec as test oracle, property-based tests
 │           └── languages/    # go, typescript, python, java, rust, haskell, lean4, c
 └── templates/
-    └── CLAUDE.md             # Short, always-on project rules (works without the skill)
+    ├── CLAUDE.md             # Short, always-on project rules (works without the skill)
+    └── CODING_STANDARDS.md   # Judgement-call rules a review step reads
 ```
 
 | Item | Status | What it does |
@@ -31,6 +32,7 @@ unclequin-skills/
 | `unix-philosophy` | Ready | Design and review guidance: Raymond's 17 rules, McIlroy, Rob Pike, with examples for 7 languages |
 | `templates/CLAUDE.md` | Ready | The core rules in one short file, imported globally or copied into a project |
 | `functional-first` | Ready | Method for going from a real-world problem to correct code: say it, model it (sets, state machines), compose it, derive it, check it. Examples for 8 languages, including C |
+| `templates/CODING_STANDARDS.md` | Ready | The rules a reviewer checks a change against, read only at review time |
 
 The two skills split by level. `unix-philosophy` covers the design of a system: modules, interfaces, and failure reporting. `functional-first` covers the method inside a feature or function: business rules, reports, lifecycles, and making correct code fast without changing its behavior. They point to each other rather than repeating each other.
 
@@ -221,6 +223,49 @@ Load the template one way, imported globally or copied into the project (Option 
 
 The template covers both skills in about 700 words. If a project only needs one, delete the other's section ("Building a feature" is functional-first; the rest is unix-philosophy) and its name in the first paragraph, to save context in every session.
 
+## Review: standards file and checks
+
+The rules sit at three stages, each read or run by a different reader:
+
+- **`CLAUDE.md` loads on every turn**, so the agent writing the code has it the whole time. It holds the principles that shape code as it is written, and every line must change what the agent does. It costs context on every turn, so it holds no checklist.
+- **`CODING_STANDARDS.md` is read at review.** A review step (a reviewer agent, a review skill, or a CI review prompt) reads it once per change and checks the change against it. It holds the judgement calls a tool can't make. The template's "Review" line points agents at it.
+- **Checks run on every commit or in CI**, with no reading at all. They hold the mechanical rules: formatting, lint, and ignored errors.
+
+Copy the standards file into the project's root, next to `CLAUDE.md`. It loads only at review, so a copy costs nothing per turn. Start it with a version line too, so drift shows:
+
+```bash
+cd ~/unclequin-skills && { echo "<!-- unclequin-skills templates/CODING_STANDARDS.md @ $(git log -1 --format=%h -- templates/CODING_STANDARDS.md) -->"; cat templates/CODING_STANDARDS.md; } > /path/to/your-project/CODING_STANDARDS.md
+```
+
+Older versions of the template ended with an 8-item "Before finishing any change, check" list. Here is where each item went:
+
+| Old checklist item | Now |
+|--------------------|-----|
+| Each new unit described in one sentence | Standards |
+| All errors handled, with context and the original cause | Check for ignored and swallowed errors; standards for the context and cause |
+| No abstraction with only one implementation and no test need | Standards |
+| No noisy logging on the success path | Standards, plus a lint for stray prints where the language has one |
+| Nothing optimized without measuring | Standards |
+| The language's own conventions and formatter | Check: formatter and linter |
+| The top function's doc comment states the rule and the reading of each ambiguous word | Standards |
+| A spec-equals-fast test for code made faster | Standards |
+
+Wire the checks into a pre-commit hook or CI so they fail the build. One example command per language the skills cover:
+
+| Language | Example check | What it catches beyond formatting |
+|----------|---------------|-----------------------------------|
+| Go | `test -z "$(gofmt -l .)" && golangci-lint run` | `errcheck` (on by default) flags ignored error values |
+| TypeScript/JavaScript | `npx prettier --check . && npx eslint . --max-warnings 0` | Turn on `no-empty`, `@typescript-eslint/no-floating-promises`, and `no-console` |
+| Python | `ruff format --check . && ruff check --extend-select BLE,S110,T20 .` | `BLE` blind `except`, `S110` `try`-`except`-`pass`, `T20` stray `print` |
+| Java | `./gradlew spotlessCheck pmdMain` | PMD's `EmptyCatchBlock` |
+| Kotlin | `ktlint && detekt` | detekt's `SwallowedException` and `EmptyCatchBlock` |
+| Rust | `cargo fmt --check && cargo clippy --all-targets -- -D warnings` | `unused_must_use` turns an ignored `Result` into an error |
+| Haskell | `ormolu --mode check $(git ls-files '*.hs') && hlint .` | Build with `-Wall -Werror`: `-Wunused-do-bind` flags discarded results |
+| Lean 4 | `lake build && lake exe runLinter` (Batteries) | No standard formatter; the compiler already rejects a discarded non-`Unit` result in `do` |
+| C | `clang-format --dry-run --Werror $(git ls-files '*.c' '*.h') && clang-tidy --checks='bugprone-*,cert-err33-c' $(git ls-files '*.c') --` | `cert-err33-c` flags unchecked return values of standard functions |
+
+List the project's own commands in the template's "Project stack" block, so agents run the same checks before they finish.
+
 ## Updating this repo
 
 When a skill changes:
@@ -231,7 +276,7 @@ git commit -m "Describe the change"
 git push
 ```
 
-If you change a rule in the skill, check whether `templates/CLAUDE.md` needs the same change, so the two don't disagree.
+If you change a rule in the skill, check whether `templates/CLAUDE.md` or `templates/CODING_STANDARDS.md` needs the same change, so they don't disagree. A rule goes in only one of the two templates: principles that shape code as it is written in `CLAUDE.md`, judgement calls a reviewer checks in `CODING_STANDARDS.md`.
 
 To add a new skill, put it in `skills/<name>/SKILL.md`, then add a plugin entry for it to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) with `"source": "./"` and `"skills": ["./skills/<name>"]`. Add it to every install method under Option B too, so a normal install still provides every skill the template names. Check the result with `claude plugin validate .`.
 
