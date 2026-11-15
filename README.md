@@ -100,28 +100,28 @@ Tips:
 
 ## Option B: Install the skills
 
-The commands below use `unix-philosophy`. To install `functional-first`, use the same commands with `functional-first` in its place.
+Install both skills. The template names both, so a session with only one of them has a pointer to a skill it can't load. Every method below installs both; use one method per machine.
 
 ### Claude Code plugin (recommended)
 
-This repo is a Claude Code plugin marketplace, and each skill is its own plugin. In a Claude Code session, install one in a single step:
+This repo is a Claude Code plugin marketplace, and each skill is its own plugin. In a Claude Code session, run:
 
 ```
 /plugin install unix-philosophy --marketplace unclequin/unclequin-skills
 ```
 
-Or from your shell, add the marketplace once and then install by name:
+```
+/plugin install functional-first --marketplace unclequin/unclequin-skills
+```
+
+Or from your shell, add the marketplace once and then install both by name:
 
 ```bash
 claude plugin marketplace add unclequin/unclequin-skills
 ```
 
 ```bash
-claude plugin install unix-philosophy@unclequin-skills
-```
-
-```bash
-claude plugin install functional-first@unclequin-skills
+claude plugin install unix-philosophy@unclequin-skills && claude plugin install functional-first@unclequin-skills
 ```
 
 Plugin skills are namespaced by plugin, so you can run one as `/unix-philosophy:unix-philosophy` or `/functional-first:functional-first`. Claude also uses them on its own when a task matches. To get updates, run `claude plugin marketplace update unclequin-skills`.
@@ -134,46 +134,60 @@ The [`skills`](https://github.com/vercel-labs/skills) CLI (Node.js 22.20 or late
 npx skills add unclequin/unclequin-skills --skill unix-philosophy -a claude-code -g
 ```
 
-`-g` installs it for all your projects. Leave it off to install into the current project only.
+```bash
+npx skills add unclequin/unclequin-skills --skill functional-first -a claude-code -g
+```
+
+`-g` installs them for all your projects. Leave it off to install into the current project only.
 
 ### Manually, for all your projects
 
 ```bash
 git clone https://github.com/unclequin/unclequin-skills.git ~/unclequin-skills
 mkdir -p ~/.claude/skills
-ln -s ~/unclequin-skills/skills/unix-philosophy ~/.claude/skills/unix-philosophy
+for s in unix-philosophy functional-first; do ln -s ~/unclequin-skills/skills/$s ~/.claude/skills/$s; done
 ```
 
-To get updates later, run `git pull` in `~/unclequin-skills`. The symlink picks up the changes.
+To get updates later, run `git pull` in `~/unclequin-skills`. The symlinks pick up the changes.
 
-On Windows, copy the folder instead of linking it:
+On Windows, copy the folders instead of linking them:
 
 ```powershell
-Copy-Item -Recurse $HOME\unclequin-skills\skills\unix-philosophy $HOME\.claude\skills\unix-philosophy
+foreach ($s in 'unix-philosophy','functional-first') { Copy-Item -Recurse $HOME\unclequin-skills\skills\$s $HOME\.claude\skills\$s }
 ```
 
 ### Manually, for one project only
 
-Put the skill inside the project and commit it, so everyone who works on the project gets it:
+Put the skills inside the project and commit them, so everyone who works on the project gets them:
 
 ```bash
 mkdir -p /path/to/your-project/.claude/skills
-cp -r skills/unix-philosophy /path/to/your-project/.claude/skills/
+cp -r skills/unix-philosophy skills/functional-first /path/to/your-project/.claude/skills/
 ```
 
-### Claude.ai
+### Claude.ai and the Claude desktop app
 
-Zip the `skills/unix-philosophy` folder and upload it as a custom skill in your Claude settings:
+Zip each skill folder and upload both zips as custom skills in your Claude settings:
 
 ```bash
-cd skills && zip -r unix-philosophy.zip unix-philosophy
+cd skills && zip -r unix-philosophy.zip unix-philosophy && zip -r functional-first.zip functional-first
+```
+
+The Claude desktop app also offers uploaded skills to its Code sessions, as `anthropic-skills:<name>`. An uploaded skill is a snapshot: after the repo changes, zip and upload it again.
+
+### Check what's installed
+
+In a Claude Code session or a Claude chat, send this one line. Both `unix-philosophy` and `functional-first` must be in the answer:
+
+```
+List the names of the skills available to you, one per line.
 ```
 
 ## Option C: Both
 
 Copy `templates/CLAUDE.md` into the project (Option A) and install both skills (Option B). CLAUDE.md keeps the core rules active in every session and tells Claude which skill to use for which part of a task. The skills add the full workflow, per-language examples, and the review format when the task calls for them.
 
-The template covers both skills in about 700 words. If a project only needs one, delete the other's section ("Building a feature" is functional-first; the rest is unix-philosophy) to save context in every session.
+The template covers both skills in about 700 words. If a project only needs one, delete the other's section ("Building a feature" is functional-first; the rest is unix-philosophy) and its name in the first paragraph, to save context in every session.
 
 ## Updating this repo
 
@@ -187,7 +201,7 @@ git push
 
 If you change a rule in the skill, check whether `templates/CLAUDE.md` needs the same change, so the two don't disagree.
 
-To add a new skill, put it in `skills/<name>/SKILL.md`, then add a plugin entry for it to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) with `"source": "./"` and `"skills": ["./skills/<name>"]`. Check the result with `claude plugin validate .`.
+To add a new skill, put it in `skills/<name>/SKILL.md`, then add a plugin entry for it to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) with `"source": "./"` and `"skills": ["./skills/<name>"]`. Add it to every install method under Option B too, so a normal install still provides every skill the template names. Check the result with `claude plugin validate .`.
 
 Edit files in this repo directly. Copying in an older zip or download of the repo brings back old paths, such as `unix-philosophy/` at the root instead of `skills/unix-philosophy/`.
 
