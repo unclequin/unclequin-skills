@@ -1,15 +1,15 @@
 # Engineering principles (Unix philosophy, functional first)
 
-This project follows the Unix philosophy in every language it uses, and builds features functional first. Apply both to every design, change, and review. The rules below are complete on their own. If the skills are installed, use them for detail: `unix-philosophy` for system design (modules, interfaces, failures), `functional-first` for the code inside a feature (business rules, reports, lifecycles, making code faster). When a task does both, use both: design the parts with the first, then build each part with the second.
+This project follows the Unix philosophy in every language it uses, and builds features functional first. The rules below are complete on their own. When the skills are installed, use them for detail: `unix-philosophy` for system design (modules, interfaces, failures), `functional-first` for the code inside a feature (business rules, reports, lifecycles, making code faster). When a task does both, design the parts with the first, then build each part with the second.
 
-Always express these principles in the idioms of the language you are working in. Don't carry patterns from one language into another.
+Express every rule in the idioms of the language at hand, the way its own standard library would.
 
 ## Core principles
 
 - **Do one thing well.** Each function, class, module, and service has one job you can state in one sentence without "and".
 - **Small interfaces.** Keep contracts narrow (1–3 operations). Accept the most general standard type that works (stream, iterable, reader, function); return specific results.
-- **Clear over clever.** Write code a junior engineer can read without explanation. Comments explain why, not what.
-- **Simplest thing that works.** No speculative abstractions, one-implementation interfaces, plugin systems, or generics for imagined future needs.
+- **Comments explain why.** The code says what it does; a comment records the reason, the constraint, or the trap.
+- **Simplest thing that works.** Add an interface, base class, generic, or plugin point when a second implementation or a test needs it.
 - **Data over logic.** Turn rule-heavy if/switch chains into tables, maps, enums, or config.
 - **Separate policy from mechanism.** Business rules and config live apart from transport, storage, UI, and engine code.
 
@@ -19,35 +19,23 @@ Always express these principles in the idioms of the language you are working in
 - **Rules that select things are sets.** "And", "or", "except" become named predicates. Keep selecting apart from summing or grouping.
 - **Lifecycles are state machines.** One transition table as data, read by a pure `step(state, event)`. Anything not in the table is an error. Replay a history by folding `step` over events.
 - **Pure core, effects at the edges.** The clock, database, and network are read outside and passed in as values.
-- **The clear version is the spec.** Make it faster only after measuring, one named transformation at a time. Keep the spec (or the old code, word for word) in the tests and check the fast version equals it on random inputs.
+- **The clear version is the spec.** Make code faster only with benchmark or profiler evidence, one named transformation at a time. Keep the spec (or the old code, word for word) in the tests and check the fast version equals it on random inputs.
 - **Test laws, not just examples.** Add property tests for the rule's laws and the lifecycle's invariants, over random inputs and random event sequences. Check the transition table against the requirement's own list of allowed moves.
 
 ## Errors and output
 
-- Fail fast and loudly. Never swallow errors: no ignored error values, empty catch blocks, or catch-all handlers that continue silently.
+- Fail fast and loudly: every error is returned, wrapped, or stops the program. Never ignore an error value or catch one and carry on silently.
 - Add context to every error (what operation, on what input) and keep the original cause.
 - Validate config and input at startup and at system boundaries.
 - Be silent on success. Log only what an operator would act on. CLIs write results to stdout, errors to stderr, and exit non-zero on failure.
 
-## Between services and languages
+## Between services
 
-- Keep boundaries simple and standard: JSON or protobuf over HTTP/gRPC, versioned payloads, documented schemas.
-- Generate clients and types from one source of truth (OpenAPI, protobuf, database schema) instead of hand-writing them in each language.
+- Version payloads that cross a service boundary, and generate clients and types from one source of truth (OpenAPI, protobuf, database schema).
 
-## Performance
+## Review
 
-- Make it work, then measure, then optimize. No optimization without a benchmark or profiler evidence from the language's standard tools.
-
-## Before finishing any change, check
-
-1. Can each new unit be described in one sentence?
-2. Are all errors handled, with context and the original cause?
-3. Is there any abstraction with only one implementation and no test need? Remove it.
-4. Is there any noisy logging on the success path? Remove it.
-5. Did you optimize anything without measuring? Revert it.
-6. Does the code follow the language's own conventions and formatter?
-7. Does the top function's doc comment state the rule, and the reading chosen for each ambiguous word?
-8. If you made something faster, is the spec-equals-fast test committed?
+When reviewing a change, apply the project's `CODING_STANDARDS.md` if it has one, and report every place the change breaks a rule.
 
 <!-- Optional: list this repo's languages and tools so Claude uses them, e.g.
 ## Project stack
