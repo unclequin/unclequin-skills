@@ -2,6 +2,10 @@
 
 Instructions for agents working on this repository. This is not the shipped rules template: that is `templates/CLAUDE.md`, which users copy or import into their own projects. Don't merge the two.
 
+## Check
+
+Run `scripts/check.py` before committing; CI runs it on every pull request.
+
 ## Agent skills
 
 ### Issue tracker
