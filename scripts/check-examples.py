@@ -63,11 +63,7 @@ COMMANDS: dict[str, list[str]] = {
     ],
     "haskell": [
         "cabal build all --enable-tests",
-        # A failing test fails the command. So does the text "Failed!": the
-        # main shown in functional-first's haskell.md calls quickCheck, which
-        # exits 0 even when a property fails.
-        'out=$(cabal test all --enable-tests --test-show-details=direct 2>&1) || { echo "$out"; exit 1; }; '
-        "! echo \"$out\" | grep -A8 'Failed!'",
+        "cabal test all --enable-tests --test-show-details=direct",
     ],
     "lean4": [
         "lake build",

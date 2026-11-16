@@ -85,6 +85,8 @@ replay = foldM step
 With QuickCheck:
 
 ```haskell
+import Control.Monad (unless)
+import System.Exit (exitFailure)
 import Test.QuickCheck
 
 instance Arbitrary YearMonth where
@@ -107,10 +109,11 @@ prop_stepFollowsTable = go Draft
       Right s' -> transition s e == Just s' && go s' es
       Left err -> err == IllegalTransition s e && transition s e == Nothing && go s es
 
+-- quickCheck only prints a failure. Exit non-zero so the test run fails too.
 main :: IO ()
 main = do
-  quickCheck prop_derivedEqualsSpec
-  quickCheck prop_stepFollowsTable
+  results <- mapM quickCheckResult [property prop_derivedEqualsSpec, property prop_stepFollowsTable]
+  unless (all isSuccess results) exitFailure
 ```
 
 `hedgehog` is the alternative, with generators as values and shrinking built in. Without either, an `iterate`-based seeded generator in a test executable works, without shrinking.
