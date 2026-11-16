@@ -2,7 +2,7 @@
 
 Read this when reviewing a change to this repo. It is not the shipped standards file: that is `templates/CODING_STANDARDS.md`, which users copy into their own projects.
 
-It holds the judgement calls a reviewer makes. The manifest, the skill folders, the README tree and word count, and the install commands are enforced by `scripts/check.py` and `scripts/install-test.sh`, so leave those to them. Apply every rule to every file the change adds or touches, and report each break with its file, line, and the rule it breaks.
+It holds the judgement calls a reviewer makes. The manifest, the skill folders, the README tree and word count, the install commands, and the `functional-first` code examples are enforced by `scripts/check.py`, `scripts/install-test.sh`, and `scripts/check-examples.py`, so leave those to them. Apply every rule to every file the change adds or touches, and report each break with its file, line, and the rule it breaks.
 
 ## Skills
 
@@ -10,7 +10,8 @@ It holds the judgement calls a reviewer makes. The manifest, the skill folders, 
 - Each line added to a skill's `description` names a distinct case that should trigger the skill. A synonym for a case already listed is cut.
 - A change to a skill's steps or description comes with a comparison: the same task run by an agent with and without the change, and what differed.
 - A rule or example added to one language file is added to every language file of that skill, or the change says why that language is left out.
-- Code in a reference file was compiled and tested as shown, and the change says with which commands.
+- A code block in a `functional-first` language file is changed together with its tested source under `examples/functional-first/<lang>/`. A block that is deliberately not real code has `<!-- example: fragment -->` on the line above its fence, and the change says why it can't be tested.
+- Code in a `unix-philosophy` reference file was compiled and tested as shown, and the change says with which commands.
 
 ## The template
 
