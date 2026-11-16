@@ -5,6 +5,8 @@
 module Main (main) where
 
 import Orders
+import Control.Monad (unless)
+import System.Exit (exitFailure)
 import Test.QuickCheck
 
 instance Arbitrary YearMonth where
@@ -27,7 +29,8 @@ prop_stepFollowsTable = go Draft
       Right s' -> transition s e == Just s' && go s' es
       Left err -> err == IllegalTransition s e && transition s e == Nothing && go s es
 
+-- quickCheck only prints a failure. Exit non-zero so the test run fails too.
 main :: IO ()
 main = do
-  quickCheck prop_derivedEqualsSpec
-  quickCheck prop_stepFollowsTable
+  results <- mapM quickCheckResult [property prop_derivedEqualsSpec, property prop_stepFollowsTable]
+  unless (all isSuccess results) exitFailure
