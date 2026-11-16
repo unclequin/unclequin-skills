@@ -6,6 +6,8 @@ Instructions for agents working on this repository. This is not the shipped rule
 
 Run `scripts/check.py` before committing; CI runs it on every pull request.
 
+After changing a code block in `skills/functional-first/references/languages/<lang>.md`, or its tested source in `examples/functional-first/<lang>/`, run `scripts/check-examples.py <lang>`. The two must stay the same, line for line.
+
 ## Review
 
 When reviewing a change here, apply the root `CODING_STANDARDS.md`. `templates/CODING_STANDARDS.md` is the shipped one, for users' projects.

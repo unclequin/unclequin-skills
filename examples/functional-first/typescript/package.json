@@ -1,0 +1,10 @@
+{
+  "name": "orders",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "fast-check": "^4.3.0",
+    "typescript": "^5.9.0"
+  }
+}

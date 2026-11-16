@@ -1,0 +1,21 @@
+cabal-version: 3.0
+name:          orders
+version:       0
+build-type:    Simple
+
+common warnings
+  default-language: Haskell2010
+  ghc-options:      -Wall -Werror
+
+library
+  import:          warnings
+  hs-source-dirs:  src
+  exposed-modules: Orders
+  build-depends:   base, array
+
+test-suite properties
+  import:         warnings
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is:        Main.hs
+  build-depends:  base, orders, QuickCheck

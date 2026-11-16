@@ -1,0 +1,12 @@
+# Dependencies and build output of the example projects.
+node_modules/
+target/
+build/
+dist-newstyle/
+.lake/
+__pycache__/
+.hypothesis/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.jqwik-database
