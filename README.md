@@ -22,8 +22,9 @@ unclequin-skills/
 │           ├── derivation.md # spec to fast code, and the behavior traps
 │           ├── testing.md    # the spec as test oracle, property-based tests
 │           └── languages/    # go, typescript, python, java, rust, haskell, lean4, c
-├── examples/
-│   └── functional-first/     # Tested sources of the code the language files show (not installed)
+├── examples/                 # Tested sources of the code the language files show (not installed)
+│   ├── unix-philosophy/
+│   └── functional-first/
 └── templates/
     ├── CLAUDE.md             # Short, always-on project rules (works without the skill)
     └── CODING_STANDARDS.md   # Judgement-call rules a review step reads

@@ -10,12 +10,12 @@ func CountLines(path string) (int, error)
 
 // Composable: works with files, HTTP bodies, strings, gzip streams, tests
 func CountLines(r io.Reader) (int, error) {
-    sc := bufio.NewScanner(r)
-    n := 0
-    for sc.Scan() {
-        n++
-    }
-    return n, sc.Err()
+	sc := bufio.NewScanner(r)
+	n := 0
+	for sc.Scan() {
+		n++
+	}
+	return n, sc.Err()
 }
 ```
 
@@ -34,7 +34,7 @@ type UserStore struct{ db *sql.DB }
 
 // in package billing
 type userGetter interface {
-    Get(ctx context.Context, id string) (User, error)
+	Get(ctx context.Context, id string) (User, error)
 }
 ```
 
@@ -42,8 +42,8 @@ type userGetter interface {
 
 ```go
 type RetryPolicy struct {
-    MaxAttempts int
-    Backoff     time.Duration
+	MaxAttempts int
+	Backoff     time.Duration
 }
 
 func Do(ctx context.Context, p RetryPolicy, fn func() error) error { /* mechanism only */ }
@@ -56,12 +56,12 @@ err := Do(ctx, RetryPolicy{MaxAttempts: 3, Backoff: 200 * time.Millisecond}, cal
 ```go
 // Opaque
 if err != nil {
-    return err
+	return err
 }
 
 // Transparent: says where and on what, keeps the cause for errors.Is/As
 if err != nil {
-    return fmt.Errorf("fetch order %s: %w", orderID, err)
+	return fmt.Errorf("fetch order %s: %w", orderID, err)
 }
 ```
 
@@ -72,7 +72,7 @@ port, _ := strconv.Atoi(os.Getenv("PORT"))
 // Fail fast at startup
 port, err := strconv.Atoi(os.Getenv("PORT"))
 if err != nil {
-    log.Fatalf("invalid PORT %q: %v", os.Getenv("PORT"), err)
+	log.Fatalf("invalid PORT %q: %v", os.Getenv("PORT"), err)
 }
 ```
 
@@ -84,10 +84,10 @@ Red flags: `_ = err`, `panic` for expected errors, `recover()` that hides bugs. 
 var shippingFees = map[string]int{"BKK": 40, "CENTRAL": 60, "NORTH": 80}
 
 func shippingFee(zone string) int {
-    if fee, ok := shippingFees[zone]; ok {
-        return fee
-    }
-    return 100
+	if fee, ok := shippingFees[zone]; ok {
+		return fee
+	}
+	return 100
 }
 ```
 
@@ -117,9 +117,9 @@ Write `BenchmarkXxx` tests, run `go test -bench . -benchmem`, compare with `benc
 
 ```go
 type Event struct {
-    Version int             `json:"version"`
-    Type    string          `json:"type"`
-    Data    json.RawMessage `json:"data"`
+	Version int             `json:"version"`
+	Type    string          `json:"type"`
+	Data    json.RawMessage `json:"data"`
 }
 ```
 

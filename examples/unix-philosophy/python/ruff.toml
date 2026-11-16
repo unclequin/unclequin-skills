@@ -1,0 +1,3 @@
+# Ruff's default rules, written out so a user-level config can't change them.
+[lint]
+select = ["E4", "E7", "E9", "F"]
