@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Lets a run be started by hand: `gh workflow run check --ref main`.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -29,11 +31,11 @@ jobs:
           node-version: 22
       - run: npm install --global @anthropic-ai/claude-code
       # A pull request installs from its own checkout, so the change under
-      # review is what gets tested. A push to main installs from GitHub,
+      # review is what gets tested. Any other run installs from GitHub,
       # exactly as the README tells users to.
       - if: github.event_name == 'pull_request'
         run: scripts/install-test.sh "$GITHUB_WORKSPACE"
-      - if: github.event_name == 'push'
+      - if: github.event_name != 'pull_request'
         run: scripts/install-test.sh
 
   # The code shown in each language reference file of both skills, checked against the
