@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """Check that the code shown in the language reference files is tested code.
 
-The rule: every fenced code block in
-skills/functional-first/references/languages/<lang>.md appears, line for
-line, in a file under examples/functional-first/<lang>/, and that folder
-passes its language's formatter, linter, compiler and tests (COMMANDS).
+The rule: in every fenced code block of
+skills/<skill>/references/languages/<lang>.md, each paragraph (a run of
+lines with no blank line) appears, line for line, in a file under
+examples/<skill>/<lang>/, and that folder passes its language's formatter,
+linter, compiler and tests (COMMANDS).
 
-A block may be indented in the source file (a method shown on its own in the
-markdown sits inside a class there); nothing else may differ. A block that
-is deliberately not real code is skipped when the line above its opening
-fence starts with `<!-- example: fragment`.
+A paragraph may be indented in the source file (a method shown on its own in
+the markdown sits inside a class there); nothing else may differ.
+
+A paragraph that is deliberately not real code (a signature with no body, a
+`...` placeholder) is listed instead in examples/<skill>/<lang>/fragments.md,
+inside a fenced block, next to the reason it can't be tested. A paragraph
+listed there that the reference file no longer shows is an error.
 
 Usage: scripts/check-examples.py [lang ...]   (no arguments: every language)
 
@@ -24,10 +28,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
-REFERENCES = "skills/functional-first/references/languages"
-EXAMPLES = "examples/functional-first"
+SKILLS = ["functional-first", "unix-philosophy"]
 FENCE = "```"
-FRAGMENT_MARKER = "<!-- example: fragment"
+FRAGMENTS = "fragments.md"
 
 C_FLAGS = "-std=c17 -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -g"
 
@@ -59,10 +62,12 @@ COMMANDS: dict[str, list[str]] = {
         "cargo test",
     ],
     "haskell": [
-        "cabal build all",
-        # The main shown in haskell.md calls quickCheck, which exits 0 even
-        # when a property fails, so fail on the failure text instead.
-        "cabal test all --test-show-details=direct | (! grep -A8 'Failed!')",
+        "cabal build all --enable-tests",
+        # A failing test fails the command. So does the text "Failed!": the
+        # main shown in functional-first's haskell.md calls quickCheck, which
+        # exits 0 even when a property fails.
+        'out=$(cabal test all --enable-tests --test-show-details=direct 2>&1) || { echo "$out"; exit 1; }; '
+        "! echo \"$out\" | grep -A8 'Failed!'",
     ],
     "lean4": [
         "lake build",
@@ -74,36 +79,27 @@ COMMANDS: dict[str, list[str]] = {
 }
 
 
-class Block(NamedTuple):
-    line: int  # 1-based line of the opening fence in the markdown file
-    tag: str  # the fence's language tag, "" if none
+class Paragraph(NamedTuple):
+    line: int  # 1-based line of its first line in the markdown file
     code: list[str]
-    fragment: bool
 
 
-def fenced_blocks(markdown: str) -> list[Block]:
-    """Every fenced block in a markdown text, in order."""
-    lines = markdown.splitlines()
-    blocks: list[Block] = []
-    opened: int | None = None
-    for i, line in enumerate(lines):
-        if not line.startswith(FENCE):
+def paragraphs(markdown: str) -> list[Paragraph]:
+    """Every paragraph of every fenced block in a markdown text, in order."""
+    found: list[Paragraph] = []
+    in_block = False
+    current: list[str] = []
+    for number, line in enumerate(markdown.splitlines(), start=1):
+        fence = line.startswith(FENCE)
+        if in_block and not fence and line.strip():
+            current.append(line)
             continue
-        if opened is None:
-            opened = i
-            continue
-        blocks.append(Block(
-            line=opened + 1,
-            tag=lines[opened][len(FENCE):].strip(),
-            code=lines[opened + 1:i],
-            fragment=opened > 0 and lines[opened - 1].startswith(FRAGMENT_MARKER),
-        ))
-        opened = None
-    return blocks
-
-
-def indent_of(line: str) -> str:
-    return line[:len(line) - len(line.lstrip())]
+        if current:
+            found.append(Paragraph(number - len(current), current))
+            current = []
+        if fence:
+            in_block = not in_block
+    return found
 
 
 def lines_matched_at(code: list[str], source: list[str], start: int) -> int:
@@ -131,34 +127,40 @@ def lines_matched(code: list[str], source: list[str]) -> int:
     )
 
 
-def check_blocks(markdown_path: str, blocks: list[Block], sources: dict[str, list[str]],
-                 examples_dir: str) -> list[str]:
-    """One error for each block that is not, whole, in any one source file."""
+def check_paragraphs(markdown_path: str, shown: list[Paragraph],
+                     sources: dict[str, list[str]], fragments: list[Paragraph],
+                     examples_dir: str) -> list[str]:
+    """One error for each shown paragraph that is neither whole in one source
+    file nor listed as a fragment, and one for each fragment no longer shown."""
+    listed = [fragment.code for fragment in fragments]
     errors = []
-    for block in blocks:
-        if block.fragment:
-            continue
-        where = f"{markdown_path}:{block.line}: the {block.tag or 'untagged'} block"
-        if not block.code:
-            errors.append(f"{where} is empty")
+    for paragraph in shown:
+        if paragraph.code in listed:
             continue
         matched, path = max(
-            ((lines_matched(block.code, lines), path) for path, lines in sources.items()),
+            ((lines_matched(paragraph.code, lines), path) for path, lines in sources.items()),
             default=(0, ""),
         )
-        if matched == len(block.code):
+        if matched == len(paragraph.code):
             continue
         if matched == 0:
             errors.append(
-                f"{where} starting `{block.code[0].strip()}` is not in any file "
-                f"under {examples_dir}/"
+                f"{markdown_path}:{paragraph.line}: the code starting "
+                f"`{paragraph.code[0].strip()}` is not in any file under {examples_dir}/ "
+                f"(if it can't compile on purpose, list it in {examples_dir}/{FRAGMENTS})"
             )
             continue
         errors.append(
-            f"{where} differs from {path} at line {block.line + 1 + matched}: "
-            f"`{block.code[matched].strip()}`"
+            f"{markdown_path}:{paragraph.line + matched}: `{paragraph.code[matched].strip()}` "
+            f"differs from {path}, which matches the {matched} lines before it"
         )
-    return errors
+    used = [paragraph.code for paragraph in shown]
+    return errors + [
+        f"{examples_dir}/{FRAGMENTS}:{fragment.line}: lists `{fragment.code[0].strip()}`, "
+        f"which {markdown_path} no longer shows"
+        for fragment in fragments
+        if fragment.code not in used
+    ]
 
 
 def check_known_languages(asked: list[str], documented: set[str]) -> list[str]:
@@ -168,7 +170,8 @@ def check_known_languages(asked: list[str], documented: set[str]) -> list[str]:
         for lang in asked
         if lang not in known
     ] + [
-        f"{REFERENCES}/{lang}.md: scripts/check-examples.py has no COMMANDS entry for {lang}"
+        f"{lang}: a reference file exists, but scripts/check-examples.py has no "
+        f"COMMANDS entry for it"
         for lang in sorted(documented - set(COMMANDS))
     ]
 
@@ -204,24 +207,35 @@ def run_commands(lang: str, examples_dir: str, markdown_path: str) -> list[str]:
     return []
 
 
-def check_language(lang: str) -> list[str]:
-    markdown_path = f"{REFERENCES}/{lang}.md"
-    examples_dir = f"{EXAMPLES}/{lang}"
+def check_language(skill: str, lang: str) -> list[str]:
+    markdown_path = f"skills/{skill}/references/languages/{lang}.md"
+    examples_dir = f"examples/{skill}/{lang}"
     if not (ROOT / examples_dir).is_dir():
         return [f"{markdown_path}: there is no {examples_dir}/ holding its tested sources"]
-    blocks = fenced_blocks((ROOT / markdown_path).read_text())
+    sources = read_sources(examples_dir)
+    # The fragments list is prose, not a tested source.
+    fragments = sources.pop(f"{examples_dir}/{FRAGMENTS}", [])
     return (
-        check_blocks(markdown_path, blocks, read_sources(examples_dir), examples_dir)
+        check_paragraphs(
+            markdown_path, paragraphs((ROOT / markdown_path).read_text()), sources,
+            paragraphs("\n".join(fragments)), examples_dir,
+        )
         + run_commands(lang, examples_dir, markdown_path)
     )
 
 
 def main(asked: list[str]) -> int:
-    documented = {p.stem for p in (ROOT / REFERENCES).glob("*.md")}
-    errors = check_known_languages(asked, documented)
+    documented = {
+        skill: {p.stem for p in (ROOT / f"skills/{skill}/references/languages").glob("*.md")}
+        for skill in SKILLS
+    }
+    every = set().union(*documented.values())
+    errors = check_known_languages(asked, every)
     if not errors:
-        for lang in asked or sorted(documented):
-            errors += check_language(lang)
+        for lang in asked or sorted(every):
+            for skill in SKILLS:
+                if lang in documented[skill]:
+                    errors += check_language(skill, lang)
     for error in errors:
         print(error, file=sys.stderr)
     return 1 if errors else 0

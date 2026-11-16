@@ -1,0 +1,33 @@
+cabal-version: 3.0
+name:          unixphil
+version:       0
+build-type:    Simple
+
+common warnings
+  default-language: Haskell2010
+  ghc-options:      -Wall -Werror
+
+library
+  import:          warnings
+  hs-source-dirs:  src
+  exposed-modules: Config, Order, Retry, Zone
+  build-depends:   base
+
+executable count-lines
+  import:         warnings
+  hs-source-dirs: app
+  main-is:        CountLines.hs
+  build-depends:  base, text
+
+executable port
+  import:         warnings
+  hs-source-dirs: app
+  main-is:        Port.hs
+  build-depends:  base, unixphil
+
+test-suite examples
+  import:         warnings
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is:        Main.hs
+  build-depends:  base, unixphil

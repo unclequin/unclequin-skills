@@ -1,0 +1,5 @@
+name = "unixphil"
+defaultTargets = ["Examples"]
+
+[[lean_lib]]
+name = "Examples"
