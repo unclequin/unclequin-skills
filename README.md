@@ -8,6 +8,9 @@ Claude skills and project templates for software development, based on the Unix 
 unclequin-skills/
 ├── .claude-plugin/
 │   └── marketplace.json      # Claude Code plugin marketplace: one plugin per skill
+├── plugins/                  # One folder per plugin, each holding only a link to its skill
+│   ├── unix-philosophy/
+│   └── functional-first/
 ├── skills/
 │   ├── unix-philosophy/      # Skill: design rules + idiomatic examples per language
 │   │   ├── SKILL.md
@@ -281,7 +284,7 @@ git push
 
 If you change a rule in the skill, check whether `templates/CLAUDE.md` or `templates/CODING_STANDARDS.md` needs the same change, so they don't disagree. A rule goes in only one of the two templates: principles that shape code as it is written in `CLAUDE.md`, judgement calls a reviewer checks in `CODING_STANDARDS.md`.
 
-To add a new skill, put it in `skills/<name>/SKILL.md`, then add a plugin entry for it to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) with `"source": "./skills/<name>"` and `"skills": ["./"]`, so installing it copies only that skill. Add it to every install method under Option B too, so a normal install still provides every skill the template names. Check the result with `claude plugin validate .`.
+To add a new skill, put it in `skills/<name>/SKILL.md`, then add a plugin entry for it to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) with `"source": "./plugins/<name>"` and no `"skills"` field, and link the skill into that folder with `mkdir -p plugins/<name>/skills && ln -s ../../../skills/<name> plugins/<name>/skills/<name>`. Installing the plugin then copies only that skill, in the `skills/` folder where Claude Code and the desktop app both look. Add it to every install method under Option B too, so a normal install still provides every skill the template names. Check the result with `claude plugin validate .`.
 
 Edit files in this repo directly. Copying in an older zip or download of the repo brings back old paths, such as `unix-philosophy/` at the root instead of `skills/unix-philosophy/`.
 
