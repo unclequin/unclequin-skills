@@ -56,6 +56,9 @@ $details"
   copied=$(cd "$dir" && find . -name SKILL.md | sort | tr '\n' ' ')
   [ "$copied" = "./skills/$skill/SKILL.md " ] ||
     fail "plugin $skill should install only skills/$skill/SKILL.md, but its install folder holds: ${copied:-no SKILL.md}"
+  # The app shows the install's README.md as the plugin's Overview tab.
+  [ -f "$dir/README.md" ] && [ ! -L "$dir/README.md" ] ||
+    fail "plugin $skill should install a README.md for the app's Overview, but its install folder has none"
 done
 unset CLAUDE_CONFIG_DIR
 
