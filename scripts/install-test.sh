@@ -59,6 +59,9 @@ $details"
   # The app shows the install's README.md as the plugin's Overview tab.
   [ -f "$dir/README.md" ] && [ ! -L "$dir/README.md" ] ||
     fail "plugin $skill should install a README.md for the app's Overview, but its install folder has none"
+  # The app shows plugin.json's description under the plugin's name in its list.
+  [ -f "$dir/.claude-plugin/plugin.json" ] && [ ! -L "$dir/.claude-plugin/plugin.json" ] ||
+    fail "plugin $skill should install .claude-plugin/plugin.json for the app's plugin list, but its install folder has none"
 done
 unset CLAUDE_CONFIG_DIR
 

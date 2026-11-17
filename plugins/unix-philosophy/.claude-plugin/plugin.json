@@ -1,0 +1,10 @@
+{
+  "name": "unix-philosophy",
+  "version": "1.0.2",
+  "description": "Apply the Unix philosophy when designing, writing, refactoring, or reviewing code, with idioms for Go, TypeScript, Python, Java/Kotlin, Rust, Haskell, and Lean 4",
+  "author": {
+    "name": "unclequin"
+  },
+  "homepage": "https://github.com/unclequin/unclequin-skills",
+  "repository": "https://github.com/unclequin/unclequin-skills"
+}

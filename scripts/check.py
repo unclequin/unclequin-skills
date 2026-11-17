@@ -3,7 +3,8 @@
 
 The rule: every skill folder under skills/ is listed in the marketplace
 manifest and in the README tree, each plugin's source is plugins/<name>
-holding only a link to its skill and a README, every path the README tree names exists,
+holding only a link to its skill, a README and a plugin.json that
+matches its marketplace entry, every path the README tree names exists,
 no SKILL.md lives outside skills/<name>/, and the README's word count for
 templates/CLAUDE.md is the real count rounded to the nearest 50.
 
@@ -24,6 +25,14 @@ MANIFEST = ".claude-plugin/marketplace.json"
 TEMPLATE = "templates/CLAUDE.md"
 SKILL_FILE = re.compile(r"^skills/[^/]+/SKILL\.md$")
 TREE_ENTRY = re.compile(r"^(?P<indent>[│ ]*)[├└]── (?P<name>\S+)")
+# Regular files each plugin folder needs, and why: the desktop app reads them
+# from the install, and skips a symlink.
+PLUGIN_FILES = {
+    "README.md": "the app shows it as the plugin's Overview",
+    ".claude-plugin/plugin.json": "the app shows its description in the plugin list",
+}
+# Fields a plugin.json repeats from the plugin's marketplace entry.
+PLUGIN_JSON_FIELDS = ("name", "version", "description")
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 WORD_CLAIM = re.compile(r"about ([\d,]+) words")
 # "about N words" is read as: N is the real count rounded to the nearest 50.
@@ -34,14 +43,14 @@ def expected_plugin_files(names: set[str]) -> dict[str, str]:
     """The files under plugins/ for these skills, mapped to their symlink target.
 
     The desktop app counts a plugin's skills by looking in its skills/
-    folder, shows its README.md (a regular file, not a link) as the
-    plugin's Overview, and installing a plugin copies only its source
-    folder. So each plugin's source is plugins/<name>, holding skills/<name>
-    as a link to the real skill folder, a README.md, and nothing else.
+    folder, reads the regular files in PLUGIN_FILES for what it shows,
+    and installing a plugin copies only its source folder. So each
+    plugin's source is plugins/<name>, holding skills/<name> as a link to
+    the real skill folder, the PLUGIN_FILES, and nothing else.
     """
     links = {f"plugins/{n}/skills/{n}": f"../../../skills/{n}" for n in names}
-    readmes = {f"plugins/{n}/README.md": None for n in names}
-    return dict(sorted({**links, **readmes}.items()))
+    files = {f"plugins/{n}/{f}": None for n in names for f in PLUGIN_FILES}
+    return dict(sorted({**links, **files}.items()))
 
 
 def check_plugins(manifest: dict, plugin_files: dict[str, str | None], folders: set[str]) -> list[str]:
@@ -71,7 +80,7 @@ def check_plugins(manifest: dict, plugin_files: dict[str, str | None], folders: 
         if path not in plugin_files:
             errors.append(
                 f"{path}: missing; create it with ln -s {target} {path}" if target
-                else f"{path}: missing; the app shows it as the plugin's Overview"
+                else f"{path}: missing; {PLUGIN_FILES[path.split('/', 2)[2]]}"
             )
         elif plugin_files[path] != target:
             errors.append(
@@ -79,10 +88,26 @@ def check_plugins(manifest: dict, plugin_files: dict[str, str | None], folders: 
                 else f"{path}: should be a regular file, not a symlink"
             )
     errors += [
-        f"{path}: unexpected file under plugins/; each plugin holds only its skill link and README.md"
+        f"{path}: unexpected file under plugins/; each plugin holds only its skill link, README.md and .claude-plugin/plugin.json"
         for path in sorted(plugin_files.keys() - expected.keys())
     ]
     return errors
+
+
+def check_plugin_jsons(manifest: dict, plugin_jsons: dict[str, dict]) -> list[str]:
+    """Each plugin.json repeats its marketplace entry's name, version and description.
+
+    plugin_jsons maps a plugin name to its parsed plugin.json; a missing
+    file is reported by check_plugins.
+    """
+    return [
+        f"plugins/{p['name']}/.claude-plugin/plugin.json: {field} is "
+        f"{plugin_jsons[p['name']].get(field)!r}, but {MANIFEST} says {p.get(field)!r}"
+        for p in manifest["plugins"]
+        if p["name"] in plugin_jsons
+        for field in PLUGIN_JSON_FIELDS
+        if plugin_jsons[p["name"]].get(field) != p.get(field)
+    ]
 
 
 def check_skill_file_locations(tracked: list[str]) -> list[str]:
@@ -167,6 +192,11 @@ def main() -> int:
         for p in tracked
         if p.startswith("plugins/")
     }
+    plugin_jsons = {
+        p["name"]: json.loads(path.read_text())
+        for p in json.loads((ROOT / MANIFEST).read_text())["plugins"]
+        if (path := ROOT / "plugins" / p["name"] / ".claude-plugin" / "plugin.json").is_file()
+    }
     readme = (ROOT / "README.md").read_text()
     manifest = json.loads((ROOT / MANIFEST).read_text())
     words = len((ROOT / TEMPLATE).read_text().split())
@@ -174,6 +204,7 @@ def main() -> int:
     errors = (
         validate_manifest()
         + check_plugins(manifest, plugin_files, folders)
+        + check_plugin_jsons(manifest, plugin_jsons)
         + check_skill_file_locations(tracked)
         + check_readme_tree(readme_tree_paths(readme), existing, folders)
         + check_word_count(readme, words)

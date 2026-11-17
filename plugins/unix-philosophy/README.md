@@ -20,6 +20,14 @@ Claude loads the skill on its own when you ask it to:
 
 To call it by name, run `/unix-philosophy:unix-philosophy`.
 
+## Install
+
+In a Claude Code session:
+
+```
+/plugin install unix-philosophy --marketplace unclequin/unclequin-skills
+```
+
 ## More
 
 Source, the always-on rules template, and install options: https://github.com/unclequin/unclequin-skills
