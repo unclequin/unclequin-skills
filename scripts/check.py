@@ -2,8 +2,8 @@
 """Check that the repo's own claims about itself are true.
 
 The rule: every skill folder under skills/ is listed in the marketplace
-manifest and in the README tree, each plugin's source folder holds only
-its own skill, every path the README tree names exists,
+manifest and in the README tree, each plugin's source is plugins/<name>
+holding only a link to its skill, every path the README tree names exists,
 no SKILL.md lives outside skills/<name>/, and the README's word count for
 templates/CLAUDE.md is the real count rounded to the nearest 50.
 
@@ -13,7 +13,7 @@ Silent on success; errors go to stderr and the exit code is 1.
 """
 
 import json
-import posixpath
+import os
 import re
 import subprocess
 import sys
@@ -29,53 +29,50 @@ WORD_CLAIM = re.compile(r"about ([\d,]+) words")
 ROUNDING = 50
 
 
-def repo_path(*parts: str) -> str:
-    """Join manifest paths into a repo-relative path ("" for the repo root)."""
-    path = posixpath.normpath(posixpath.join(*parts))
-    return "" if path == "." else path
+def expected_plugin_files(names: set[str]) -> dict[str, str]:
+    """The files under plugins/ for these skills: one symlink per skill.
 
-
-def manifest_skills(manifest: dict) -> set[str]:
-    """Skill folders the manifest lists, as repo-relative paths.
-
-    A plugin's skill paths are relative to its own source folder.
+    The desktop app counts a plugin's skills by looking in its skills/
+    folder, and installing a plugin copies only its source folder. So each
+    plugin's source is plugins/<name>, holding skills/<name> as a link to
+    the real skill folder, and nothing else.
     """
     return {
-        repo_path(plugin["source"], skill)
-        for plugin in manifest["plugins"]
-        for skill in plugin.get("skills", [])
+        f"plugins/{n}/skills/{n}": f"../../../skills/{n}" for n in sorted(names)
     }
 
 
-def check_plugin_sources(manifest: dict, tracked: list[str]) -> list[str]:
-    """Each plugin's source folder holds exactly one SKILL.md.
+def check_plugins(manifest: dict, plugin_files: dict[str, str | None], folders: set[str]) -> list[str]:
+    """Each skill folder has one plugin, sourced from plugins/<name>.
 
-    Installing a plugin copies its whole source folder, so a source wider
-    than one skill ships the other skills' files too, and the app's plugin
-    card then counts them.
+    plugin_files maps each file under plugins/ to its symlink target
+    (None for a regular file).
     """
-    errors = []
-    for plugin in manifest["plugins"]:
-        source = repo_path(plugin["source"])
-        prefix = f"{source}/" if source else ""
-        skills = [p for p in tracked if p.startswith(prefix) and p.endswith("SKILL.md")]
-        if len(skills) != 1:
-            errors.append(
-                f"{MANIFEST}: plugin {plugin['name']} has source "
-                f"{plugin['source']}, which holds {len(skills)} SKILL.md files "
-                f"({', '.join(skills) or 'none'}); point it at one skill folder"
-            )
-    return errors
-
-
-def check_manifest_matches_folders(listed: set[str], folders: set[str]) -> list[str]:
-    return [
-        f"{MANIFEST}: lists {p}, which is not a folder under skills/"
-        for p in sorted(listed - folders)
+    names = {f.removeprefix("skills/") for f in folders}
+    plugins = {p["name"]: p for p in manifest["plugins"]}
+    errors = [
+        f"{MANIFEST}: plugin {n} has no folder skills/{n}"
+        for n in sorted(plugins.keys() - names)
     ] + [
-        f"{MANIFEST}: skills folder {p} is not listed in any plugin"
-        for p in sorted(folders - listed)
+        f"{MANIFEST}: skills folder skills/{n} has no plugin"
+        for n in sorted(names - plugins.keys())
     ]
+    for n, plugin in sorted(plugins.items()):
+        if plugin.get("source") != f"./plugins/{n}":
+            errors.append(f"{MANIFEST}: plugin {n} should have source ./plugins/{n}, not {plugin.get('source')}")
+        if "skills" in plugin:
+            errors.append(f"{MANIFEST}: plugin {n} should have no skills field; it uses its source's skills/ folder")
+    expected = expected_plugin_files(names & plugins.keys())
+    for path, target in sorted(expected.items()):
+        if path not in plugin_files:
+            errors.append(f"{path}: missing; create it with ln -s {target} {path}")
+        elif plugin_files[path] != target:
+            errors.append(f"{path}: should be a symlink to {target}")
+    errors += [
+        f"{path}: unexpected file under plugins/; each plugin holds only its skill link"
+        for path in sorted(plugin_files.keys() - expected.keys())
+    ]
+    return errors
 
 
 def check_skill_file_locations(tracked: list[str]) -> list[str]:
@@ -155,14 +152,18 @@ def main() -> int:
         for i in range(1, len(parts) + 1)
     }
     folders = {f"skills/{p.name}" for p in (ROOT / "skills").iterdir() if p.is_dir()}
+    plugin_files = {
+        p: os.readlink(ROOT / p) if (ROOT / p).is_symlink() else None
+        for p in tracked
+        if p.startswith("plugins/")
+    }
     readme = (ROOT / "README.md").read_text()
     manifest = json.loads((ROOT / MANIFEST).read_text())
     words = len((ROOT / TEMPLATE).read_text().split())
 
     errors = (
         validate_manifest()
-        + check_manifest_matches_folders(manifest_skills(manifest), folders)
-        + check_plugin_sources(manifest, tracked)
+        + check_plugins(manifest, plugin_files, folders)
         + check_skill_file_locations(tracked)
         + check_readme_tree(readme_tree_paths(readme), existing, folders)
         + check_word_count(readme, words)
