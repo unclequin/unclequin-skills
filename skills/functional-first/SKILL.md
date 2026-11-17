@@ -47,7 +47,7 @@ Read `references/composition.md`. The shape to produce:
 - One named predicate or function per phrase of the sentence or set expression: `paidIn(month)`, `isRefunded`, `total`.
 - Selection kept apart from aggregation: filter, then sum. Not one loop with every condition inline.
 - Lifecycle transitions stored once, as data (a table or map), read by a pure `step(state, event)` function. History is a fold of `step` over events. When a state carries data (a term number), `step` checks the table first, then computes the new data.
-- Effects (I/O, clock, database) at the edges. The composed core takes plain values and returns plain values.
+- Pure core, thin shell. The core makes every decision as pure functions over values and returns what to do as data. The shell reads the clock, database, and network, calls the core, and carries out the result.
 
 Write the sentence from step 1 as the top function's doc comment.
 
