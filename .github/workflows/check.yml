@@ -22,6 +22,16 @@ jobs:
       - run: npm install --global @anthropic-ai/claude-code
       - run: python3 scripts/check.py
 
+  versions:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The base branch's history is needed to diff against it.
+          fetch-depth: 0
+      - run: python3 scripts/check-versions.py "origin/$GITHUB_BASE_REF"
+
   install:
     runs-on: ubuntu-latest
     steps:

@@ -8,11 +8,13 @@
     {
       "name": "unix-philosophy",
       "source": "./plugins/unix-philosophy",
+      "version": "1.0.0",
       "description": "Apply the Unix philosophy when designing, writing, refactoring, or reviewing code, with idioms for Go, TypeScript, Python, Java/Kotlin, Rust, Haskell, and Lean 4"
     },
     {
       "name": "functional-first",
       "source": "./plugins/functional-first",
+      "version": "1.0.0",
       "description": "Go from a real-world problem to correct code: say it, model it with sets and state machines, compose a pure spec, derive fast code, and check it with property tests. Go, TypeScript, Python, Java/Kotlin, Rust, Haskell, Lean 4, and C"
     }
   ]

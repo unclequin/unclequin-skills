@@ -24,6 +24,7 @@ MANIFEST = ".claude-plugin/marketplace.json"
 TEMPLATE = "templates/CLAUDE.md"
 SKILL_FILE = re.compile(r"^skills/[^/]+/SKILL\.md$")
 TREE_ENTRY = re.compile(r"^(?P<indent>[│ ]*)[├└]── (?P<name>\S+)")
+VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 WORD_CLAIM = re.compile(r"about ([\d,]+) words")
 # "about N words" is read as: N is the real count rounded to the nearest 50.
 ROUNDING = 50
@@ -60,6 +61,8 @@ def check_plugins(manifest: dict, plugin_files: dict[str, str | None], folders: 
     for n, plugin in sorted(plugins.items()):
         if plugin.get("source") != f"./plugins/{n}":
             errors.append(f"{MANIFEST}: plugin {n} should have source ./plugins/{n}, not {plugin.get('source')}")
+        if not VERSION.match(str(plugin.get("version", ""))):
+            errors.append(f"{MANIFEST}: plugin {n} needs a version like 1.0.0, not {plugin.get('version')}")
         if "skills" in plugin:
             errors.append(f"{MANIFEST}: plugin {n} should have no skills field; it uses its source's skills/ folder")
     expected = expected_plugin_files(names & plugins.keys())
