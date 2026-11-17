@@ -6,6 +6,8 @@ Instructions for agents working on this repository. This is not the shipped rule
 
 Run `scripts/check.py` before committing; CI runs it on every pull request.
 
+A change to files under `skills/<name>/` raises that plugin's `version` in `.claude-plugin/marketplace.json`; `scripts/check-versions.py main` checks it.
+
 After changing a code block in `skills/<skill>/references/languages/<lang>.md`, or its tested source in `examples/<skill>/<lang>/`, run `scripts/check-examples.py <lang>`. The two must stay the same, line for line.
 
 ## Review

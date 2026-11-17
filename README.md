@@ -164,7 +164,19 @@ claude plugin marketplace add unclequin/unclequin-skills
 claude plugin install unix-philosophy@unclequin-skills && claude plugin install functional-first@unclequin-skills
 ```
 
-Plugin skills are namespaced by plugin, so you can run one as `/unix-philosophy:unix-philosophy` or `/functional-first:functional-first`. Claude also uses them on its own when a task matches. To get updates, run `claude plugin marketplace update unclequin-skills`.
+Plugin skills are namespaced by plugin, so you can run one as `/unix-philosophy:unix-philosophy` or `/functional-first:functional-first`. Claude also uses them on its own when a task matches.
+
+To get updates, refresh the marketplace, then update both plugins, then restart Claude Code:
+
+```bash
+claude plugin marketplace update unclequin-skills
+```
+
+```bash
+claude plugin update unix-philosophy@unclequin-skills && claude plugin update functional-first@unclequin-skills
+```
+
+Each plugin has its own version number, shown by `claude plugin list`.
 
 ### npx
 
@@ -282,9 +294,11 @@ git commit -m "Describe the change"
 git push
 ```
 
+Then raise the changed skill's `version` in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json). Claude Code only offers an update when the version changes, so a change without a bump never reaches people who already installed the plugin; CI fails a pull request that changes a skill without raising its version. Raise the third number for a wording fix, the second for a new rule, language, or step, and the first for a change that breaks how people already use the skill (a renamed skill, a removed step).
+
 If you change a rule in the skill, check whether `templates/CLAUDE.md` or `templates/CODING_STANDARDS.md` needs the same change, so they don't disagree. A rule goes in only one of the two templates: principles that shape code as it is written in `CLAUDE.md`, judgement calls a reviewer checks in `CODING_STANDARDS.md`.
 
-To add a new skill, put it in `skills/<name>/SKILL.md`, then add a plugin entry for it to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) with `"source": "./plugins/<name>"` and no `"skills"` field, and link the skill into that folder with `mkdir -p plugins/<name>/skills && ln -s ../../../skills/<name> plugins/<name>/skills/<name>`. Installing the plugin then copies only that skill, in the `skills/` folder where Claude Code and the desktop app both look. Add it to every install method under Option B too, so a normal install still provides every skill the template names. Check the result with `claude plugin validate .`.
+To add a new skill, put it in `skills/<name>/SKILL.md`, then add a plugin entry for it to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) with `"source": "./plugins/<name>"`, `"version": "1.0.0"`, and no `"skills"` field, and link the skill into that folder with `mkdir -p plugins/<name>/skills && ln -s ../../../skills/<name> plugins/<name>/skills/<name>`. Installing the plugin then copies only that skill, in the `skills/` folder where Claude Code and the desktop app both look. Add it to every install method under Option B too, so a normal install still provides every skill the template names. Check the result with `claude plugin validate .`.
 
 Edit files in this repo directly. Copying in an older zip or download of the repo brings back old paths, such as `unix-philosophy/` at the root instead of `skills/unix-philosophy/`.
 

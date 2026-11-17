@@ -2,7 +2,7 @@
 
 Read this when reviewing a change to this repo. It is not the shipped standards file: that is `templates/CODING_STANDARDS.md`, which users copy into their own projects.
 
-It holds the judgement calls a reviewer makes. The manifest, the skill folders, the README tree and word count, the install commands, and the code examples in the language files are enforced by `scripts/check.py`, `scripts/install-test.sh`, and `scripts/check-examples.py`, so leave those to them. Apply every rule to every file the change adds or touches, and report each break with its file, line, and the rule it breaks.
+It holds the judgement calls a reviewer makes. The manifest, the skill folders, the README tree and word count, the install commands, the code examples in the language files are enforced by `scripts/check.py`, `scripts/install-test.sh`, `scripts/check-examples.py`, and whether a changed plugin's version went up by `scripts/check-versions.py`, so leave those to them. Whether the bump is the right size (patch, minor, or major, as the README defines them) is a judgement call: check it. Apply every rule to every file the change adds or touches, and report each break with its file, line, and the rule it breaks.
 
 ## Skills
 
