@@ -25,6 +25,14 @@ Claude loads the skill on its own when you are:
 
 To call it by name, run `/functional-first:functional-first`.
 
+## Install
+
+In a Claude Code session:
+
+```
+/plugin install functional-first --marketplace unclequin/unclequin-skills
+```
+
 ## More
 
 Source, the always-on rules template, and install options: https://github.com/unclequin/unclequin-skills
