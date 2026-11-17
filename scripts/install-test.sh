@@ -48,6 +48,11 @@ jq -r '.plugins[].name' "$manifest" | while read -r skill; do
   echo "$details" | grep -Eq "^ *Skills \(1\) +$skill\$" ||
     fail "plugin $skill should load exactly the skill $skill, but its inventory is:
 $details"
+  # Loading one skill is not enough: the app's plugin card counts every
+  # SKILL.md copied into the install, so the copy must hold only this one.
+  copied=$(find "$CLAUDE_CONFIG_DIR/plugins/cache/$marketplace/$skill" -name SKILL.md | wc -l | tr -d ' ')
+  [ "$copied" = 1 ] ||
+    fail "plugin $skill should install one SKILL.md, but its install folder holds $copied"
 done
 unset CLAUDE_CONFIG_DIR
 

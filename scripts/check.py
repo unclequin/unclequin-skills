@@ -2,7 +2,8 @@
 """Check that the repo's own claims about itself are true.
 
 The rule: every skill folder under skills/ is listed in the marketplace
-manifest and in the README tree, every path the README tree names exists,
+manifest and in the README tree, each plugin's source folder holds only
+its own skill, every path the README tree names exists,
 no SKILL.md lives outside skills/<name>/, and the README's word count for
 templates/CLAUDE.md is the real count rounded to the nearest 50.
 
@@ -12,6 +13,7 @@ Silent on success; errors go to stderr and the exit code is 1.
 """
 
 import json
+import posixpath
 import re
 import subprocess
 import sys
@@ -27,13 +29,43 @@ WORD_CLAIM = re.compile(r"about ([\d,]+) words")
 ROUNDING = 50
 
 
+def repo_path(*parts: str) -> str:
+    """Join manifest paths into a repo-relative path ("" for the repo root)."""
+    path = posixpath.normpath(posixpath.join(*parts))
+    return "" if path == "." else path
+
+
 def manifest_skills(manifest: dict) -> set[str]:
-    """Skill folders the manifest lists, as repo-relative paths."""
+    """Skill folders the manifest lists, as repo-relative paths.
+
+    A plugin's skill paths are relative to its own source folder.
+    """
     return {
-        skill.removeprefix("./").rstrip("/")
+        repo_path(plugin["source"], skill)
         for plugin in manifest["plugins"]
         for skill in plugin.get("skills", [])
     }
+
+
+def check_plugin_sources(manifest: dict, tracked: list[str]) -> list[str]:
+    """Each plugin's source folder holds exactly one SKILL.md.
+
+    Installing a plugin copies its whole source folder, so a source wider
+    than one skill ships the other skills' files too, and the app's plugin
+    card then counts them.
+    """
+    errors = []
+    for plugin in manifest["plugins"]:
+        source = repo_path(plugin["source"])
+        prefix = f"{source}/" if source else ""
+        skills = [p for p in tracked if p.startswith(prefix) and p.endswith("SKILL.md")]
+        if len(skills) != 1:
+            errors.append(
+                f"{MANIFEST}: plugin {plugin['name']} has source "
+                f"{plugin['source']}, which holds {len(skills)} SKILL.md files "
+                f"({', '.join(skills) or 'none'}); point it at one skill folder"
+            )
+    return errors
 
 
 def check_manifest_matches_folders(listed: set[str], folders: set[str]) -> list[str]:
@@ -130,6 +162,7 @@ def main() -> int:
     errors = (
         validate_manifest()
         + check_manifest_matches_folders(manifest_skills(manifest), folders)
+        + check_plugin_sources(manifest, tracked)
         + check_skill_file_locations(tracked)
         + check_readme_tree(readme_tree_paths(readme), existing, folders)
         + check_word_count(readme, words)
