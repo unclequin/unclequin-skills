@@ -113,6 +113,39 @@ shell:  report.write(revenue)
 
 `monthlyRevenue(orders, month)` with `month` as a parameter is testable and reusable. `monthlyRevenue()` that reads `time.Now()` inside is neither.
 
+The program has two layers. The **core** makes every decision, as pure functions over plain values. The **shell** around it reads input, calls the core once, and carries out the result. Most of the code and nearly all the branches belong in the core.
+
+**Keep the shell thin.** The shell reads, calls, and writes, in a straight line. A branch on domain data in the shell (`if order.total > 1000: notifyFraudTeam()`) is a decision, so move it into the core and let the shell act on what comes back. The branches a shell keeps are about the effects themselves: retry on a timeout, stop when the input ends.
+
+**Return decisions as data.** When the outcome is "do something" (send an email, save a record, call a service), the core returns a description of the action instead of doing it:
+
+```
+core:   decide(policies, today) -> [Remind(p1), Lapse(p2), Remind(p7)]   -- pure
+shell:  for action in decide(policies, today):
+            match action:
+                Remind(p) -> mailer.send(reminderFor(p))
+                Lapse(p)  -> db.save(lapse(p))
+```
+
+The actions are a small closed type, like the tags in "Branches" above. A test calls `decide` and compares the list it returns. No mailer or database is needed, and "what should happen" is checked separately from "did it happen". The `match` in the shell is the one place that turns an action into an effect, and it stays a plain lookup.
+
+**A read in the middle: split into stages.** When the logic needs data it can only know to fetch partway through, cut it at the read. Each stage is pure, and the shell does the read between them:
+
+```
+core:   ids = needsProviderStatus(refunds)              -- which ones are unclear?
+shell:  statuses = provider.fetchStatus(ids)
+core:   plan = settle(refunds, statuses)                -- decide with the answers
+shell:  execute(plan)
+```
+
+Pass the fetched values into the core, not the database handle or a fetching callback. A core that holds a fetcher still does its own effects, just one call away, and its tests need a fake fetcher again. When the stages repeat until done (page through results, follow links), the shell loops and the core decides each round: "fetch these next", or "finished, here is the result".
+
+**Failures split the same way.** A domain failure (an illegal transition, an invalid quantity) is a value the core returns, as in "Failures" above. An effect failure (the network is down, the file is missing) happens in the shell, which reports it with the operation and input that failed. The core never sees a timeout, so its result type stays about the domain.
+
+**Test each layer for what it does.** The core gets the unit and property tests: many of them, fast, over generated inputs. The shell gets a few integration tests that check the wiring with real or fake I/O: the right reads happen, each action reaches the right effect, and an effect failure is reported. If the shell needs many tests, it is making decisions, and those belong in the core.
+
+**Large inputs stream through the core.** When the data is too big to read at once, the shell reads it in chunks and folds a pure function over them, `fold step over chunks`, the same shape as replaying events. The core still sees only values; streaming is the shell's job.
+
 ## Naming
 
 - Use the domain's words: `paidIn`, `isRefunded`, `lapse`, `renew`. Avoid `process`, `handle`, `check1`, or `helper`.
