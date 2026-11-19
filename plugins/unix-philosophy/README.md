@@ -4,7 +4,7 @@ Design guidance for software in any language: build small, clear parts that do o
 
 ## What it does
 
-The skill gives Claude Eric S. Raymond's 17 rules of the Unix philosophy, McIlroy's "do one thing well", and Rob Pike's rules on measurement and data, each with idiomatic examples for Go, TypeScript, Python, Java/Kotlin, Rust, Haskell, and Lean 4. Claude applies them in the idioms of the language at hand.
+The skill gives Claude Eric S. Raymond's 17 rules of the Unix philosophy, McIlroy's "do one thing well", and Rob Pike's rules on measurement and data, each with idiomatic examples for Go, TypeScript, Python, Java/Kotlin, Rust, Haskell, Elixir, and Lean 4. Claude applies them in the idioms of the language at hand.
 
 It covers the design of a system: how to split it into modules, what their interfaces look like, and how failures are reported. For the method inside a single feature (business rules, lifecycles, making correct code fast), install the companion plugin `functional-first`.
 

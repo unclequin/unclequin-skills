@@ -1,6 +1,6 @@
 ---
 name: unix-philosophy
-description: Apply the Unix philosophy (Eric S. Raymond's 17 rules, McIlroy's "do one thing well", Rob Pike's rules on measurement and data) when designing, writing, refactoring, or reviewing software in any programming language. Use this skill whenever the user asks to design a module, service, CLI, API, library, or package; write or refactor non-trivial code; review a pull request or code for quality; split a large function, class, or service; decide between a clever and a simple approach; or asks about modularity, composability, simplicity, error handling, or "clean" design, even if they never mention Unix. Works for Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Lean 4 (programs and proofs), and other languages.
+description: Apply the Unix philosophy (Eric S. Raymond's 17 rules, McIlroy's "do one thing well", Rob Pike's rules on measurement and data) when designing, writing, refactoring, or reviewing software in any programming language. Use this skill whenever the user asks to design a module, service, CLI, API, library, or package; write or refactor non-trivial code; review a pull request or code for quality; split a large function, class, or service; decide between a clever and a simple approach; or asks about modularity, composability, simplicity, error handling, or "clean" design, even if they never mention Unix. Works for Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Elixir, Lean 4 (programs and proofs), and other languages.
 ---
 
 # Unix Philosophy for Software Development
@@ -23,6 +23,7 @@ This skill covers design: how to split a system and what its interfaces look lik
   - `java.md`: Java and Kotlin
   - `rust.md`: Rust
   - `haskell.md`: Haskell
+  - `elixir.md`: Elixir
   - `lean4.md`: Lean 4, for both programs and proofs (lemmas, tactics, specifications)
 - If no file exists for the language in use, apply the rules using that language's standard conventions, standard library abstractions, and community style guide. The questions in "Mapping rules to any language" below tell you what to look for.
 

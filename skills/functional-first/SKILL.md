@@ -1,6 +1,6 @@
 ---
 name: functional-first
-description: Use when implementing or fixing business rules, filters, reports, totals, calculations, data transformations, workflows, or entity lifecycles (orders, policies, tickets, subscriptions, approvals), when a loop gives wrong results, or when correct code must be made faster without changing its behavior. Works for Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Lean 4, and C.
+description: Use when implementing or fixing business rules, filters, reports, totals, calculations, data transformations, workflows, or entity lifecycles (orders, policies, tickets, subscriptions, approvals), when a loop gives wrong results, or when correct code must be made faster without changing its behavior. Works for Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Elixir, Lean 4, and C.
 ---
 
 # Functional First
@@ -73,7 +73,7 @@ Use the language's property-testing library. Where none is available, a seeded r
 
 ## Language files
 
-Before writing code, read the file for the language in use, in `references/languages/`: `go.md`, `typescript.md` (also JavaScript), `python.md`, `java.md` (also Kotlin), `rust.md`, `haskell.md`, `lean4.md`, `c.md`. Each shows the pipeline idiom, a state machine as data, the error type for a step that can fail, the property-testing library, and what the compiler already derives for you.
+Before writing code, read the file for the language in use, in `references/languages/`: `go.md`, `typescript.md` (also JavaScript), `python.md`, `java.md` (also Kotlin), `rust.md`, `haskell.md`, `elixir.md`, `lean4.md`, `c.md`. Each shows the pipeline idiom, a state machine as data, the error type for a step that can fail, the property-testing library, and what the compiler already derives for you.
 
 For another language, use its standard collection pipeline (or plain loops over named predicates), its sum type or enum for states, and its property-testing library.
 
