@@ -12,7 +12,7 @@ The skill walks Claude through five steps:
 4. **Derive it.** Make it faster only when a measurement says so, one named transformation at a time.
 5. **Check it.** Property tests for the rule's laws, with the clear version as the oracle for the fast one.
 
-It has examples for Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Lean 4, and C. It works inside a feature or function; for splitting a system into modules and interfaces, install the companion plugin `unix-philosophy`.
+It has examples for Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Elixir, Lean 4, and C. It works inside a feature or function; for splitting a system into modules and interfaces, install the companion plugin `unix-philosophy`.
 
 ## When Claude uses it
 

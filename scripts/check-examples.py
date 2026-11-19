@@ -68,6 +68,12 @@ COMMANDS: dict[str, list[str]] = {
     "lean4": [
         "lake build",
     ],
+    "elixir": [
+        "mix deps.get",
+        "mix format --check-formatted",
+        "mix compile --warnings-as-errors",
+        "mix test --warnings-as-errors",
+    ],
     "c": [
         f"mkdir -p build && cc {C_FLAGS} -o build/orders orders.c",
         "./build/orders",

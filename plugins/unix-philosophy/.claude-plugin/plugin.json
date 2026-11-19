@@ -1,7 +1,7 @@
 {
   "name": "unix-philosophy",
-  "version": "1.0.2",
-  "description": "Apply the Unix philosophy when designing, writing, refactoring, or reviewing code, with idioms for Go, TypeScript, Python, Java/Kotlin, Rust, Haskell, and Lean 4",
+  "version": "1.1.0",
+  "description": "Apply the Unix philosophy when designing, writing, refactoring, or reviewing code, with idioms for Go, TypeScript, Python, Java/Kotlin, Rust, Haskell, Elixir, and Lean 4",
   "author": {
     "name": "unclequin"
   },

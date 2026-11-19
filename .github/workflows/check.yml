@@ -55,7 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lang: [go, typescript, python, java, rust, haskell, lean4, c]
+        lang: [go, typescript, python, java, rust, haskell, elixir, lean4, c]
     steps:
       - uses: actions/checkout@v4
       - if: matrix.lang == 'go'
@@ -83,6 +83,11 @@ jobs:
         uses: haskell-actions/setup@v2
         with:
           ghc-version: "9.14"
+      - if: matrix.lang == 'elixir'
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28"
+          elixir-version: "1.19"
       # elan reads the lean-toolchain file in each Lean examples folder and
       # installs that Lean version on the first `lake` call.
       - if: matrix.lang == 'lean4'

@@ -1,6 +1,6 @@
 # unclequin-skills
 
-Claude skills and project templates for software development, based on the Unix philosophy and on functional-first programming. They work across Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, and Lean 4, and `functional-first` also covers C.
+Claude skills and project templates for software development, based on the Unix philosophy and on functional-first programming. They work across Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Elixir, and Lean 4, and `functional-first` also covers C.
 
 ## What's in this repo
 
@@ -16,7 +16,7 @@ unclequin-skills/
 │   │   ├── SKILL.md
 │   │   └── references/
 │   │       ├── rules.md
-│   │       └── languages/    # go, typescript, python, java, rust, haskell, lean4
+│   │       └── languages/    # go, typescript, python, java, rust, haskell, elixir, lean4
 │   └── functional-first/     # Skill: from a real-world problem to correct code
 │       ├── SKILL.md          # the five-step workflow
 │       └── references/
@@ -24,7 +24,7 @@ unclequin-skills/
 │           ├── composition.md
 │           ├── derivation.md # spec to fast code, and the behavior traps
 │           ├── testing.md    # the spec as test oracle, property-based tests
-│           └── languages/    # go, typescript, python, java, rust, haskell, lean4, c
+│           └── languages/    # go, typescript, python, java, rust, haskell, elixir, lean4, c
 ├── examples/                 # Tested sources of the code the language files show (not installed)
 │   ├── unix-philosophy/
 │   └── functional-first/
@@ -35,9 +35,9 @@ unclequin-skills/
 
 | Item | Status | What it does |
 |------|--------|--------------|
-| `unix-philosophy` | Ready | Design and review guidance: Raymond's 17 rules, McIlroy, Rob Pike, with examples for 7 languages |
+| `unix-philosophy` | Ready | Design and review guidance: Raymond's 17 rules, McIlroy, Rob Pike, with examples for 8 languages |
 | `templates/CLAUDE.md` | Ready | The core rules in one short file, imported globally or copied into a project |
-| `functional-first` | Ready | Method for going from a real-world problem to correct code: say it, model it (sets, state machines), compose it, derive it, check it. Examples for 8 languages, including C |
+| `functional-first` | Ready | Method for going from a real-world problem to correct code: say it, model it (sets, state machines), compose it, derive it, check it. Examples for 9 languages, including C |
 | `templates/CODING_STANDARDS.md` | Ready | The rules a reviewer checks a change against, read only at review time |
 
 The two skills split by level. `unix-philosophy` covers the design of a system: modules, interfaces, and failure reporting. `functional-first` covers the method inside a feature or function: business rules, reports, lifecycles, and making correct code fast without changing its behavior. They point to each other rather than repeating each other.
@@ -279,6 +279,7 @@ Wire the checks into a pre-commit hook or CI so they fail the build. One example
 | Kotlin | `ktlint && detekt` | detekt's `SwallowedException` and `EmptyCatchBlock` |
 | Rust | `cargo fmt --check && cargo clippy --all-targets -- -D warnings` | `unused_must_use` turns an ignored `Result` into an error |
 | Haskell | `ormolu --mode check $(git ls-files '*.hs') && hlint .` | Build with `-Wall -Werror`: `-Wunused-do-bind` flags discarded results |
+| Elixir | `mix format --check-formatted && mix compile --warnings-as-errors && mix credo --strict` | Credo's unused-operation checks flag a discarded `Enum` or `String` result; Dialyzer (`dialyxir`) with `:unmatched_returns` flags an ignored `{:error, _}` |
 | Lean 4 | `lake build && lake exe runLinter` (Batteries) | No standard formatter; the compiler already rejects a discarded non-`Unit` result in `do` |
 | C | `clang-format --dry-run --Werror $(git ls-files '*.c' '*.h') && clang-tidy --checks='bugprone-*,cert-err33-c' $(git ls-files '*.c') --` | `cert-err33-c` flags unchecked return values of standard functions |
 
