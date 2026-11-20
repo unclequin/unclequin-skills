@@ -101,6 +101,118 @@ The module attribute is the table, compiled in as a literal map. `reduce_while` 
 
 A long-lived entity often lives in a process (a `GenServer` or `:gen_statem`). The process is the imperative shell: it holds the current state, receives events as messages, and does the I/O. Every decision stays in the pure `step/2`, called from `handle_call` or `handle_cast`, so the lifecycle is tested without starting a process.
 
+## Types: sets of values, sets of messages
+
+```elixir
+defmodule OrderRecord do
+  # Before: three flags and two optional fields allow 2³ combinations of flags,
+  # each with or without an amount and a tracking number. Four are legal.
+  defstruct paid: false, shipped: false, cancelled: false, amount: nil, tracking: nil
+
+  @type t :: %__MODULE__{
+          paid: boolean(),
+          shipped: boolean(),
+          cancelled: boolean(),
+          amount: non_neg_integer() | nil,
+          tracking: String.t() | nil
+        }
+end
+```
+
+```elixir
+defmodule Amount do
+  @moduledoc "An amount in integer cents, greater than zero. Only `parse/1` makes one."
+  @enforce_keys [:cents]
+  defstruct @enforce_keys
+
+  @opaque t :: %__MODULE__{cents: pos_integer()}
+
+  @doc "Parses raw input at the boundary; the core takes only `Amount.t()`."
+  @spec parse(String.t()) :: {:ok, t()} | {:error, String.t()}
+  def parse(raw) when is_binary(raw) do
+    with true <- raw =~ ~r/\A[0-9]+\z/,
+         cents when cents > 0 <- String.to_integer(raw) do
+      {:ok, %__MODULE__{cents: cents}}
+    else
+      _ -> {:error, "invalid amount: #{inspect(raw)}"}
+    end
+  end
+
+  @spec cents(t()) :: pos_integer()
+  def cents(%__MODULE__{cents: cents}), do: cents
+end
+```
+
+`@opaque` tells Dialyzer to warn when code outside `Amount` builds the struct or reads its field. That is the only guard: at run time `%Amount{cents: -1}` is an ordinary map, so the rule holds by convention and Dialyzer, not by the compiler.
+
+```elixir
+defmodule OrderState do
+  # After: one tuple per state, each holding only its own data.
+  @type t ::
+          {:draft, id :: String.t()}
+          | {:paid, id :: String.t(), Amount.t()}
+          | {:shipped, id :: String.t(), Amount.t(), tracking :: String.t()}
+          | {:cancelled, id :: String.t()}
+
+  @doc "The amount to refund on cancellation: only money that was taken."
+  @spec refund_due(t()) :: non_neg_integer()
+  def refund_due({:draft, _id}), do: 0
+  def refund_due({:cancelled, _id}), do: 0
+  def refund_due({:paid, _id, amount}), do: Amount.cents(amount)
+  def refund_due({:shipped, _id, amount, _tracking}), do: Amount.cents(amount)
+```
+
+Elixir doesn't check that the clauses cover the union: a fifth state raises `FunctionClauseError` when it arrives, so give each state a test. From 1.19 on, the compiler runs its own checker built on set-theoretic types: unions, intersections, and negations, with `term()` for every value and `none()` for no value. It infers those types from patterns and guards and prints them in its warnings, marking with dashes an argument it can prove won't match (`-{:draft, binary()}-`). You can't write those types in a signature yet, so `@type` and `@spec` stay as documentation and Dialyzer's input.
+
+```elixir
+  @doc "The messages a state accepts, read from the transition table."
+  @spec accepts(atom()) :: [atom()]
+  def accepts(state) do
+    for {{^state, event}, _next} <- Lifecycle.transitions(), do: event
+  end
+
+  # Each operation matches only the state that accepts it.
+  def pay({:draft, id}, amount), do: {:paid, id, amount}
+  def ship({:paid, id, amount}, tracking), do: {:shipped, id, amount, tracking}
+  def cancel({:draft, id}), do: {:cancelled, id}
+  def cancel({:paid, id, _amount}), do: {:cancelled, id}
+end
+```
+
+Elixir has no compile-time typestate. `ship/2` matches only a paid order, so shipping a draft raises at run time. The 1.20 compiler goes further when it can see the argument: `ship({:draft, "o1"}, "T1")` is a type warning, and an error under `--warnings-as-errors`. A state that is only known at run time gets no warning, so `Lifecycle.step/2` stays the check.
+
+A process's interface is the set of messages it handles. Write that set as one `@type`, and let every `handle_call` clause pass the decision to the pure `step/2`:
+
+```elixir
+defmodule OrderServer do
+  @moduledoc "One order's lifecycle as a process. Its interface is `message`."
+  use GenServer
+
+  @typedoc "Every message the server handles, and nothing else."
+  @type message :: :pay | :ship | :cancel | :accepts
+
+  def start_link(state), do: GenServer.start_link(__MODULE__, state)
+
+  @spec call(GenServer.server(), message()) :: :ok | {:error, term()} | [atom()]
+  def call(server, message), do: GenServer.call(server, message)
+
+  @impl true
+  def init(state), do: {:ok, state}
+
+  @impl true
+  def handle_call(:accepts, _from, state), do: {:reply, OrderState.accepts(state), state}
+
+  def handle_call(event, _from, state) when event in [:pay, :ship, :cancel] do
+    case Lifecycle.step(state, event) do
+      {:ok, next} -> {:reply, :ok, next}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+end
+```
+
+A message outside the union matches no clause and crashes the server, which is the failure you want: loud, and handled by its supervisor.
+
 ## Check: properties
 
 With StreamData:
@@ -150,6 +262,43 @@ With StreamData:
 ```
 
 `use ExUnitProperties` in the test module brings in `property`, `check all`, and the generators; StreamData shrinks a failing list to a small one. The last test is the one that catches a wrong entry in the table: "step follows the table" passes either way, because it reads the same table it checks.
+
+```elixir
+  @states [:draft, :paid, :shipped, :cancelled]
+  @events [:pay, :ship, :cancel]
+
+  test "a state accepts exactly the events step allows" do
+    for state <- @states do
+      allowed = for event <- @events, match?({:ok, _}, Lifecycle.step(state, event)), do: event
+      assert Enum.sort(OrderState.accepts(state)) == Enum.sort(allowed)
+    end
+  end
+
+  property "parse accepts exactly the positive whole numbers of cents" do
+    check all raw <- one_of([string(:printable), map(integer(), &Integer.to_string/1)]) do
+      positive? = raw =~ ~r/\A[0-9]+\z/ and String.to_integer(raw) > 0
+      assert match?({:ok, _}, Amount.parse(raw)) == positive?
+    end
+
+    check all cents <- positive_integer() do
+      assert {:ok, amount} = Amount.parse(Integer.to_string(cents))
+      assert Amount.cents(amount) == cents
+    end
+  end
+
+  test "the server answers its messages from the table" do
+    {:ok, order} = OrderServer.start_link(:draft)
+
+    assert OrderServer.call(order, :accepts) == [:cancel, :pay]
+    assert OrderServer.call(order, :ship) == {:error, {:illegal_transition, :draft, :ship}}
+    assert OrderServer.call(order, :pay) == :ok
+    assert OrderServer.call(order, :accepts) == [:cancel, :ship]
+    assert OrderServer.call(order, :ship) == :ok
+    assert OrderServer.call(order, :accepts) == []
+  end
+```
+
+The server test only sends messages and checks the replies. It never reads the process's state with `:sys.get_state/1`, so it keeps passing if the state's shape changes. There's no test that shipping a draft fails to compile: ExUnit has no standard way to assert it, and the warning depends on the Elixir version.
 
 ## Tooling
 

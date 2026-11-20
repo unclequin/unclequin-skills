@@ -37,7 +37,7 @@ unclequin-skills/
 |------|--------|--------------|
 | `unix-philosophy` | Ready | Design and review guidance: Raymond's 17 rules, McIlroy, Rob Pike, with examples for 8 languages |
 | `templates/CLAUDE.md` | Ready | The core rules in one short file, imported globally or copied into a project |
-| `functional-first` | Ready | Method for going from a real-world problem to correct code: say it, model it (sets, state machines), compose it, derive it, check it. Examples for 9 languages, including C |
+| `functional-first` | Ready | Method for going from a real-world problem to correct code: say it, model it (sets, state machines, types), compose it, derive it, check it. Examples for 9 languages, including C |
 | `templates/CODING_STANDARDS.md` | Ready | The rules a reviewer checks a change against, read only at review time |
 
 The two skills split by level. `unix-philosophy` covers the design of a system: modules, interfaces, and failure reporting. `functional-first` covers the method inside a feature or function: business rules, reports, lifecycles, and making correct code fast without changing its behavior. They point to each other rather than repeating each other.
@@ -239,7 +239,7 @@ List the names of the skills available to you, one per line.
 
 Load the template one way, imported globally or copied into the project (Option A), and install both skills (Option B). CLAUDE.md keeps the core rules active in every session and tells Claude which skill to use for which part of a task. The skills add the full workflow, per-language examples, and the review format when the task calls for them.
 
-The template covers both skills in about 600 words. If a project only needs one, delete the other's section ("Building a feature" is functional-first; the rest is unix-philosophy) and its name in the first paragraph, to save context in every session.
+The template covers both skills in about 650 words. If a project only needs one, delete the other's section ("Building a feature" is functional-first; the rest is unix-philosophy) and its name in the first paragraph, to save context in every session.
 
 ## Review: standards file and checks
 
@@ -309,5 +309,6 @@ Edit files in this repo directly. Copying in an older zip or download of the rep
 - Doug McIlroy's summary of the Unix philosophy
 - Rob Pike's rules of programming
 - The `functional-first` skill is inspired by the method in Pieter Hartel and Henk Muller, *Functional C* (Addison-Wesley, 1997). Its transformation catalog draws on Burstall and Darlington's fold/unfold work (1977) and the Bird–Meertens formalism
+- Its rules on types draw on Cardelli and Wegner (1985) and Castagna's set-theoretic types for "a type is a set of values", Minsky's "make illegal states unrepresentable" (2011), King's "Parse, don't validate" (2019), and, for objects and processes as the messages they accept, Kay (1993), Cook (2009), and Liskov and Wing (1994). Sources and verification notes: [docs/research/types-sets-and-messages.md](docs/research/types-sets-and-messages.md)
 
 All explanations and examples in this repo are written in our own words.

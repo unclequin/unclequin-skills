@@ -121,6 +121,91 @@ fun step(state: State, event: Event): Result<State> =
 
 Kotlin collection operations are eager and allocate a list per stage. Switch to `asSequence()` for long pipelines over large data, after measuring.
 
+## Types: sets of values, sets of messages
+
+```java
+// Before: three flags and two optional fields allow 2³ combinations of flags,
+// each with or without an amount and a tracking number. Four are legal.
+public record OrderRecord(boolean paid, boolean shipped, boolean cancelled,
+        Optional<Long> amount, Optional<String> tracking) {}
+```
+
+```java
+/** An amount in integer cents, greater than zero. */
+public record Amount(long cents) {
+    public Amount {
+        if (cents <= 0) {
+            throw new IllegalArgumentException("amount must be positive: " + cents);
+        }
+    }
+
+    /** Parses raw input at the boundary; the core takes only Amount. */
+    public static Amount parse(String raw) {
+        if (!raw.matches("[0-9]+")) {
+            throw new IllegalArgumentException("invalid amount: \"" + raw + "\"");
+        }
+        // parseLong rejects values too large for a long; the constructor rejects zero.
+        return new Amount(Long.parseLong(raw));
+    }
+}
+```
+
+A record's constructor is as public as the record, so the check goes in the compact constructor: every `Amount` that exists is positive, however it was made, deserialization included. `parse` is the boundary that turns a `String` into one. The regex matters: `parseLong` alone also accepts `"+5"`, `"-5"`, and other scripts' digits.
+
+```java
+// After: one type per state, each holding only its own data.
+// A state's methods are the messages it accepts.
+public sealed interface Order permits Draft, Paid, Shipped, Cancelled {}
+
+public record Draft(String id) implements Order, Cancellable {
+    public Paid pay(Amount amount) {
+        return new Paid(id, amount);
+    }
+}
+
+public record Paid(String id, Amount amount) implements Order, Cancellable {
+    public Shipped ship(String tracking) {
+        return new Shipped(id, amount, tracking);
+    }
+}
+
+public record Shipped(String id, Amount amount, String tracking) implements Order {}
+
+public record Cancelled(String id) implements Order {}
+
+/** The amount to refund on cancellation: only money that was taken. */
+public static long refundDue(Order order) {
+    return switch (order) {
+        case Draft d -> 0;
+        case Cancelled c -> 0;
+        case Paid p -> p.amount().cents();
+        case Shipped s -> s.amount().cents();
+    };
+}
+```
+
+`Order` is sealed, so the compiler knows its four cases and the `switch` needs no `default`. Add a fifth record to `permits` and every `switch` over `Order` that doesn't handle it stops compiling.
+
+```java
+/** The states that accept cancel. */
+public sealed interface Cancellable permits Draft, Paid {
+    String id();
+
+    default Cancelled cancel() {
+        return new Cancelled(id());
+    }
+}
+
+/** The messages a state accepts, read from the transition table. */
+public static List<Event> accepts(State state) {
+    return Stream.of(Event.values()).filter(TRANSITIONS.get(state)::containsKey).toList();
+}
+```
+
+The methods are the typestate: only `Paid` has `ship`, so `draft.ship("T1")` doesn't compile, and only the two `Cancellable` states have `cancel`. `Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `TRANSITIONS` instead of keeping a second list. Events that arrive as data, from a queue or a database, still go through `step`. When messages carry data of their own, make them a sealed interface of records instead of an enum, and the same exhaustive `switch` handles them.
+
+In Kotlin, a `sealed interface` of `data class` states with a `when` expression gives the same exhaustiveness check, and a `value class` with a private constructor and a parsing factory gives the narrow type.
+
 ## Check: properties
 
 With jqwik, a JUnit 5 engine:
@@ -156,6 +241,36 @@ void lifecycleInvariants(@ForAll @Size(max = 8) List<Event> events) {
     }
 }
 ```
+
+```java
+@Example
+void aStateAcceptsExactlyTheEventsStepAllows() {
+    for (State state : State.values()) {
+        assertEquals(Stream.of(Event.values()).filter(e -> allows(state, e)).toList(), accepts(state));
+    }
+}
+
+@Property
+void parseAcceptsExactlyThePositiveWholeNumbersOfCents(@ForAll("raw") String raw) {
+    boolean digits = !raw.isEmpty() && raw.chars().allMatch(c -> c >= '0' && c <= '9');
+    boolean valid = digits && new BigInteger(raw).signum() > 0 && new BigInteger(raw).bitLength() < 64;
+    try {
+        Amount amount = Amount.parse(raw);
+        assertTrue(valid);
+        assertEquals(new BigInteger(raw).longValueExact(), amount.cents());
+    } catch (IllegalArgumentException e) {
+        assertFalse(valid);
+    }
+}
+
+@Provide
+Arbitrary<String> raw() {
+    return Arbitraries.oneOf(Arbitraries.strings(), Arbitraries.longs().map(String::valueOf),
+            Arbitraries.strings().numeric().ofMaxLength(25));
+}
+```
+
+`allows(state, event)` calls `step` and reports whether it threw. Java has no standard way to assert that `draft.ship(...)` fails to compile short of running the compiler inside a test, so that check is left to the build.
 
 For Kotlin, Kotest's `checkAll` covers the same ground. Without a library, a seeded `java.util.Random` loop inside a normal JUnit test works too, without shrinking.
 

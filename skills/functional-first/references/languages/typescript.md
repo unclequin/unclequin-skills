@@ -90,6 +90,81 @@ export function replay(start: State, history: readonly Event[]): Result {
 
 When states carry data (only an issued policy has a term), make `State` a tagged union (`{ status: "issued"; term: number } | ...`). Keep a table keyed by `status` for which moves are legal, and compute the new data in `step`.
 
+## Types: sets of values, sets of messages
+
+```ts
+// Before: three flags and two optional fields allow 2³ combinations of flags,
+// each with or without an amount and a tracking number. Four are legal.
+export type OrderRecord = {
+  paid: boolean;
+  shipped: boolean;
+  cancelled: boolean;
+  amount?: number;
+  tracking?: string;
+};
+```
+
+```ts
+/** An amount in integer cents, greater than zero. Only parseAmount makes one. */
+export type Amount = number & { readonly __brand: "Amount" };
+
+export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
+
+/** Parses raw input at the boundary; the core takes only Amount. */
+export function parseAmount(raw: string): Parsed<Amount> {
+  const n = Number(raw);
+  return /^[0-9]+$/.test(raw) && Number.isSafeInteger(n) && n > 0
+    ? { ok: true, value: n as Amount }
+    : { ok: false, error: `invalid amount: ${JSON.stringify(raw)}` };
+}
+```
+
+The brand exists only in the type checker: an `Amount` is a plain number at run time, but a bare `number` can't be passed where an `Amount` is expected. `parseAmount` is the one place that asserts it.
+
+```ts
+// After: one type per state, each holding only its own data.
+export type Draft = { readonly status: "draft"; readonly id: string };
+export type Paid = { readonly status: "paid"; readonly id: string; readonly amount: Amount };
+export type Shipped = {
+  readonly status: "shipped";
+  readonly id: string;
+  readonly amount: Amount;
+  readonly tracking: string;
+};
+export type Cancelled = { readonly status: "cancelled"; readonly id: string };
+export type Order = Draft | Paid | Shipped | Cancelled;
+
+/** The amount to refund on cancellation: only money that was taken. */
+export function refundDue(order: Order): number {
+  switch (order.status) {
+    case "draft":
+    case "cancelled":
+      return 0;
+    case "paid":
+    case "shipped":
+      return order.amount;
+    default:
+      return assertNever(order);
+  }
+}
+```
+
+`assertNever` takes a `never`, so adding a fifth state is a compile error in every `switch` that doesn't handle it. TypeScript's unions are untagged, so give every case a literal `status` field to switch on.
+
+```ts
+/** The messages a state accepts, read from the transition table. */
+export function accepts(state: State): Event[] {
+  return events.filter((e) => transitions[state][e] !== undefined);
+}
+
+// Typestate: each operation takes only the state that accepts it.
+export const pay = (o: Draft, amount: Amount): Paid => ({ status: "paid", id: o.id, amount });
+export const ship = (o: Paid, tracking: string): Shipped => ({ ...o, status: "shipped", tracking });
+export const cancel = (o: Draft | Paid): Cancelled => ({ status: "cancelled", id: o.id });
+```
+
+`Event` is the set of messages the lifecycle understands, and `accepts` reads the subset for one state from the table instead of keeping a second list. The typed operations make the same table a compile-time check for code that drives an order step by step: `ship(draft, ...)` doesn't type-check. Events that arrive as data, from a queue or a database, still go through `step`.
+
 ## Check: properties
 
 With `fast-check`, which works with `node:test`, Vitest, and Jest:
@@ -122,6 +197,26 @@ test("lifecycle invariants hold over random event sequences", () => {
   }));
 });
 ```
+
+```ts
+test("a state accepts exactly the events step allows", () => {
+  for (const state of states) {
+    assert.deepEqual(accepts(state), events.filter((e) => step(state, e).ok));
+  }
+});
+
+test("a draft can't be shipped", () => {
+  const draft: Draft = { status: "draft", id: "o1" };
+  const amount = parseAmount("500");
+  assert.ok(amount.ok);
+  assert.equal(ship(pay(draft, amount.value), "T1").status, "shipped");
+  // @ts-expect-error a Draft is not a Paid, so ship rejects it at compile time
+  const illegal = () => ship(draft, "T1");
+  assert.equal(typeof illegal, "function");
+});
+```
+
+`@ts-expect-error` turns "this must not compile" into a test: `tsc` fails if the line ever starts type-checking.
 
 Without a dependency, a seeded generator in a plain test works the same way. It just doesn't shrink:
 

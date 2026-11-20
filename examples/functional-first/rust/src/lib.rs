@@ -115,3 +115,4 @@ pub fn replay(start: State, events: &[Event]) -> Result<State, IllegalTransition
         .iter()
         .try_fold(start, |state, &event| step(state, event))
 }
+pub mod types;

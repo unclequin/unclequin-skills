@@ -1,3 +1,5 @@
+import Std.Data.String.ToNat
+
 /-! The code shown in skills/functional-first/references/languages/lean4.md.
 scripts/check-examples.py checks that the two stay the same. -/
 
@@ -93,3 +95,106 @@ theorem terminal_absorbs (e : Event) :
 theorem shipped_then_any_fails (e : Event) (es : List Event) :
     (replay .shipped (e :: es)).toOption = none := by
   cases e <;> rfl
+
+-- Before: three flags and two optional fields allow 2³ combinations of flags,
+-- each with or without an amount and a tracking number. Four are legal.
+structure OrderRecord where
+  paid : Bool
+  shipped : Bool
+  cancelled : Bool
+  amount : Option Nat
+  tracking : Option String
+
+/-- An amount in integer cents, greater than zero. -/
+abbrev Amount := { n : Nat // n > 0 }
+
+/-- Parses raw input at the boundary; the core takes only `Amount`. -/
+def parseAmount (raw : String) : Except String Amount :=
+  match raw.toNat? with
+  | some n =>
+    if h : raw.all Char.isDigit ∧ n > 0 then .ok ⟨n, h.2⟩
+    else .error s!"invalid amount: {raw.quote}"
+  | none => .error s!"invalid amount: {raw.quote}"
+
+/-- `parseAmount` accepts exactly the strings of digits whose value is positive. -/
+theorem parseAmount_ok_iff (raw : String) :
+    (parseAmount raw).toBool = true ↔
+      raw.all Char.isDigit = true ∧ ∃ n, raw.toNat? = some n ∧ n > 0 := by
+  unfold parseAmount
+  split
+  · rename_i n hn
+    split
+    · rename_i h
+      exact ⟨fun _ => ⟨h.1, n, hn, h.2⟩, fun _ => rfl⟩
+    · rename_i h
+      refine ⟨(nomatch ·), ?_⟩
+      rintro ⟨digits, m, hm, pos⟩
+      rw [hn] at hm
+      cases hm
+      exact absurd ⟨digits, pos⟩ h
+  · rename_i hn
+    refine ⟨(nomatch ·), ?_⟩
+    rintro ⟨_, m, hm, _⟩
+    rw [hn] at hm
+    cases hm
+
+/-- Every positive whole number of cents parses to itself. -/
+theorem parseAmount_repr (n : Nat) (h : n > 0) : parseAmount (Nat.repr n) = .ok ⟨n, h⟩ := by
+  have digits : (Nat.repr n).all Char.isDigit = true := by
+    simpa [String.all_bool_eq, Nat.toList_repr] using
+      fun c hc => Nat.isDigit_of_mem_toDigits (by omega) (by omega) hc
+  simp [parseAmount, digits, Nat.toNat?_repr, h]
+
+/-- An order indexed by its state: each constructor holds only its own data. -/
+inductive OrderIn : State → Type where
+  | draft (id : String) : OrderIn .draft
+  | paid (id : String) (amount : Amount) : OrderIn .paid
+  | shipped (id : String) (amount : Amount) (tracking : String) : OrderIn .shipped
+  | cancelled (id : String) : OrderIn .cancelled
+
+def OrderIn.id : OrderIn s → String
+  | .draft id | .paid id _ | .shipped id _ _ | .cancelled id => id
+
+/-- The amount to refund on cancellation: only money that was taken. -/
+def refundDue : OrderIn s → Nat
+  | .draft _ | .cancelled _ => 0
+  | .paid _ amount | .shipped _ amount _ => amount.val
+
+def allEvents : List Event := [.pay, .ship, .cancel]
+
+/-- The messages a state accepts, read from the transition table. -/
+def accepts (s : State) : List Event :=
+  allEvents.filter fun e => (transition s e).isSome
+
+-- Typestate: each operation takes only the state that accepts it.
+def pay : OrderIn .draft → Amount → OrderIn .paid
+  | .draft id, amount => .paid id amount
+
+def ship : OrderIn .paid → String → OrderIn .shipped
+  | .paid id amount, tracking => .shipped id amount tracking
+
+/-- Cancel asks the table itself: `decide` proves the move is in it, or the call fails. -/
+def cancel (o : OrderIn s) (_ : transition s .cancel = some .cancelled := by decide) :
+    OrderIn .cancelled :=
+  .cancelled o.id
+
+theorem allEvents_complete (e : Event) : e ∈ allEvents := by
+  cases e <;> decide
+
+/-- A state accepts exactly the events `step` allows. -/
+theorem accepts_iff_step (s : State) (e : Event) :
+    e ∈ accepts s ↔ (step s e).toBool = true := by
+  cases s <;> cases e <;> decide
+
+/-- Terminal states accept nothing. -/
+theorem accepts_terminal : accepts .shipped = [] ∧ accepts .cancelled = [] := by
+  decide
+
+#guard refundDue (ship (pay (.draft "o1") ⟨500, by decide⟩) "T1") == 500
+#guard refundDue (cancel (pay (.draft "o1") ⟨500, by decide⟩)) == 0
+
+-- A draft can't be shipped, and a shipped order can't be cancelled.
+#guard_msgs (drop info) in
+#check_failure ship (.draft "o1") "T1"
+#guard_msgs (drop info) in
+#check_failure cancel (.shipped "o1" ⟨500, by decide⟩ "T1")
