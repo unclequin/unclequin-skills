@@ -111,3 +111,51 @@ type Event struct {
 	Type    string          `json:"type"`
 	Data    json.RawMessage `json:"data"`
 }
+
+// QuoteV1 is version 1 of the quote request.
+type QuoteV1 struct {
+	SKU      string `json:"sku"`
+	Quantity int    `json:"quantity"`
+}
+
+// QuoteV2 embeds QuoteV1 and adds an optional coupon; "" means none.
+type QuoteV2 struct {
+	QuoteV1
+	Coupon string `json:"coupon,omitempty"`
+}
+
+var prices = map[string]int{"apple": 100, "pear": 150}
+
+var percentOff = map[string]int{"TENOFF": 10}
+
+func lookup(table map[string]int, key, what string) (int, error) {
+	v, ok := table[key]
+	if !ok {
+		return 0, fmt.Errorf("unknown %s: %q", what, key)
+	}
+	return v, nil
+}
+
+func quoteV1(q QuoteV1) (int, error) {
+	price, err := lookup(prices, q.SKU, "sku")
+	if err != nil {
+		return 0, err
+	}
+	return price * q.Quantity, nil
+}
+
+func quoteV2(q QuoteV2) (int, error) {
+	price, err := lookup(prices, q.SKU, "sku")
+	if err != nil {
+		return 0, err
+	}
+	total := price * q.Quantity
+	if q.Coupon == "" {
+		return total, nil
+	}
+	off, err := lookup(percentOff, q.Coupon, "coupon")
+	if err != nil {
+		return 0, err
+	}
+	return total - total*off/100, nil
+}

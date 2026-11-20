@@ -147,6 +147,51 @@ pub fn port_from_env() -> anyhow::Result<u16> {
     Ok(port)
 }
 
+/// Version 1 of the quote request.
+pub struct QuoteV1 {
+    pub sku: String,
+    pub quantity: u32,
+}
+
+/// Version 2 adds an optional coupon; every `QuoteV1` converts to one with none.
+pub struct QuoteV2 {
+    pub sku: String,
+    pub quantity: u32,
+    pub coupon: Option<String>,
+}
+
+impl From<QuoteV1> for QuoteV2 {
+    fn from(q: QuoteV1) -> Self {
+        QuoteV2 {
+            sku: q.sku,
+            quantity: q.quantity,
+            coupon: None,
+        }
+    }
+}
+
+pub const PRICES: &[(&str, u32)] = &[("apple", 100), ("pear", 150)];
+const PERCENT_OFF: &[(&str, u32)] = &[("TENOFF", 10)];
+
+fn lookup(table: &[(&str, u32)], key: &str, what: &str) -> anyhow::Result<u32> {
+    let found = table.iter().find(|(k, _)| *k == key);
+    found
+        .map(|(_, value)| *value)
+        .ok_or_else(|| anyhow::anyhow!("unknown {what}: {key}"))
+}
+
+pub fn quote_v1(q: &QuoteV1) -> anyhow::Result<u32> {
+    Ok(lookup(PRICES, &q.sku, "sku")? * q.quantity)
+}
+
+pub fn quote_v2(q: &QuoteV2) -> anyhow::Result<u32> {
+    let total = lookup(PRICES, &q.sku, "sku")? * q.quantity;
+    match &q.coupon {
+        None => Ok(total),
+        Some(coupon) => Ok(total - total * lookup(PERCENT_OFF, coupon, "coupon")? / 100),
+    }
+}
+
 // rustfmt would spread these one-line declarations over several lines; the
 // reference file shows them compact. Nothing uses the sketch types.
 #[rustfmt::skip]
@@ -258,5 +303,31 @@ mod tests {
         );
         std::env::set_var("PORT", "8080");
         assert_eq!(port_from_env().unwrap(), 8080);
+    }
+
+    #[test]
+    fn version_2_answers_every_version_1_request_the_same() {
+        for (sku, _) in PRICES {
+            for quantity in 1..=100 {
+                let q = QuoteV1 {
+                    sku: sku.to_string(),
+                    quantity,
+                };
+                let expected = quote_v1(&q).unwrap();
+                assert_eq!(quote_v2(&q.into()).unwrap(), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn version_2s_new_field_changes_only_the_new_requests() {
+        let with = |coupon: &str| QuoteV2 {
+            sku: "pear".to_string(),
+            quantity: 3,
+            coupon: Some(coupon.to_string()),
+        };
+        assert_eq!(quote_v2(&with("TENOFF")).unwrap(), 405);
+        let err = quote_v2(&with("BOGUS")).unwrap_err();
+        assert_eq!(err.to_string(), "unknown coupon: BOGUS");
     }
 }

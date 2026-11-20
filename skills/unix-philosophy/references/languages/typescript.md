@@ -112,3 +112,38 @@ Measure first: Chrome DevTools Performance tab, `node --cpu-prof`, `clinic.js`, 
 ## Extensibility
 
 Version API payloads and events (`{ version: 1, type, data }`); add optional fields rather than changing existing ones.
+
+A version may add to the set of messages it accepts, never take from it:
+
+```ts
+/** Version 1 of the quote request. */
+export type QuoteV1 = { readonly sku: string; readonly quantity: number };
+
+/** Version 2 adds an optional coupon, so every QuoteV1 is still a QuoteV2. */
+export type QuoteV2 = QuoteV1 & { readonly coupon?: string };
+```
+
+```ts
+export const quoteV1 = (q: QuoteV1): number => lookup(prices, q.sku, "sku") * q.quantity;
+
+export function quoteV2(q: QuoteV2): number {
+  const total = lookup(prices, q.sku, "sku") * q.quantity;
+  if (q.coupon === undefined) return total;
+  return total - Math.floor((total * lookup(percentOff, q.coupon, "coupon")) / 100);
+}
+```
+
+Because `QuoteV1` is assignable to `QuoteV2`, the compiler checks half the rule: every version 1 request is still accepted. A test checks the other half, that each gets the same answer, with the old handler kept as the spec:
+
+```ts
+test("version 2 answers every version 1 request the same", () => {
+  for (const sku of Object.keys(prices)) {
+    for (let quantity = 1; quantity <= 100; quantity++) {
+      const q: QuoteV1 = { sku, quantity };
+      assert.equal(quoteV2(q), quoteV1(q));
+    }
+  }
+});
+```
+
+Making `coupon` required, or renaming `quantity`, would make `QuoteV1` no longer assignable, and the test would stop compiling. That is the signal for a new major version, served beside the old one.

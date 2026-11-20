@@ -35,4 +35,19 @@ defmodule ExamplesTest do
     assert Shipping.zone_fee(:north) == 80
     assert_raise KeyError, fn -> Shipping.zone_fee(:moon) end
   end
+
+  test "version 2 answers every version 1 request the same" do
+    for sku <- Pricing.skus(), quantity <- 1..100 do
+      request = %{sku: sku, quantity: quantity}
+      assert Pricing.quote_v2(request) == Pricing.quote_v1(request)
+    end
+  end
+
+  test "version 2's coupon changes only the new requests" do
+    assert Pricing.quote_v2(%{sku: "pear", quantity: 3, coupon: "TENOFF"}) == 405
+
+    assert_raise KeyError, fn ->
+      Pricing.quote_v2(%{sku: "pear", quantity: 3, coupon: "BOGUS"})
+    end
+  end
 end

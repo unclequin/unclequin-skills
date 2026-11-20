@@ -107,3 +107,26 @@ export {
   portSilent, retryPartner, shippingFee, signup, welcomed,
 };
 export type { UserGetter };
+
+/** Version 1 of the quote request. */
+export type QuoteV1 = { readonly sku: string; readonly quantity: number };
+
+/** Version 2 adds an optional coupon, so every QuoteV1 is still a QuoteV2. */
+export type QuoteV2 = QuoteV1 & { readonly coupon?: string };
+
+export const prices: Readonly<Record<string, number>> = { apple: 100, pear: 150 };
+const percentOff: Readonly<Record<string, number>> = { TENOFF: 10 };
+
+function lookup(table: Readonly<Record<string, number>>, key: string, what: string): number {
+  const value = table[key];
+  if (value === undefined) throw new Error(`unknown ${what}: ${key}`);
+  return value;
+}
+
+export const quoteV1 = (q: QuoteV1): number => lookup(prices, q.sku, "sku") * q.quantity;
+
+export function quoteV2(q: QuoteV2): number {
+  const total = lookup(prices, q.sku, "sku") * q.quantity;
+  if (q.coupon === undefined) return total;
+  return total - Math.floor((total * lookup(percentOff, q.coupon, "coupon")) / 100);
+}

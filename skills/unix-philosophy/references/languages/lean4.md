@@ -122,3 +122,38 @@ Measure first with `set_option profiler true` for elaboration and proof time, an
 ## Extensibility
 
 Give `structure` fields default values so new fields don't break existing code, use type classes where users must add their own instances, and keep public lemma statements stable because downstream proofs depend on them.
+
+A version may add to the set of messages it accepts, never take from it:
+
+```lean
+/-- Version 1 of the quote request. -/
+structure QuoteV1 where
+  sku : String
+  quantity : Nat
+
+/-- Version 2 adds a coupon that defaults to none, so every QuoteV1 is still a QuoteV2. -/
+structure QuoteV2 extends QuoteV1 where
+  coupon : Option String := none
+
+instance : Coe QuoteV1 QuoteV2 := ⟨fun q => { toQuoteV1 := q }⟩
+```
+
+```lean
+def quoteV1 (q : QuoteV1) : Except String Nat := do
+  return (← lookupIn "sku" prices q.sku) * q.quantity
+
+def quoteV2 (q : QuoteV2) : Except String Nat := do
+  let total := (← lookupIn "sku" prices q.sku) * q.quantity
+  match q.coupon with
+  | none => return total
+  | some code => return total - total * (← lookupIn "coupon" percentOff code) / 100
+```
+
+The coercion is a total function, so the compiler checks that every version 1 request is still accepted. A theorem checks the other half, that each gets the same answer, with the old handler kept as the spec. It covers every request, not a sample, unknown skus included:
+
+```lean
+theorem quoteV2_answers_every_v1_request_the_same (q : QuoteV1) :
+    quoteV2 q = quoteV1 q := rfl
+```
+
+Removing the coupon's default, or renaming `quantity`, would break the coercion or the theorem, and the build would fail. That is the signal for a new major version, served beside the old one.

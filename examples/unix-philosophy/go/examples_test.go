@@ -67,3 +67,30 @@ func TestEventKeepsUnknownData(t *testing.T) {
 		t.Fatalf("got %s, %v", out, err)
 	}
 }
+
+func TestVersion2AnswersEveryVersion1RequestTheSame(t *testing.T) {
+	for sku := range prices {
+		for quantity := 1; quantity <= 100; quantity++ {
+			q := QuoteV1{SKU: sku, Quantity: quantity}
+			got, gotErr := quoteV2(QuoteV2{QuoteV1: q})
+			want, wantErr := quoteV1(q)
+			if got != want || (gotErr == nil) != (wantErr == nil) {
+				t.Fatalf("%+v: got %d, %v; want %d, %v", q, got, gotErr, want, wantErr)
+			}
+		}
+	}
+}
+
+func TestVersion2NewFieldChangesOnlyTheNewRequests(t *testing.T) {
+	pear := QuoteV1{SKU: "pear", Quantity: 3}
+	if got, err := quoteV2(QuoteV2{QuoteV1: pear, Coupon: "TENOFF"}); got != 405 || err != nil {
+		t.Fatalf("got %d, %v; want 405, nil", got, err)
+	}
+	if _, err := quoteV2(QuoteV2{QuoteV1: pear, Coupon: "BOGUS"}); err == nil || !strings.Contains(err.Error(), "unknown coupon") {
+		t.Fatalf("got %v; want an unknown coupon error", err)
+	}
+	var v2 QuoteV2
+	if err := json.Unmarshal([]byte(`{"sku":"pear","quantity":3}`), &v2); err != nil || v2.QuoteV1 != pear {
+		t.Fatalf("a version 1 payload decoded as %+v, %v", v2, err)
+	}
+}

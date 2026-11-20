@@ -16,6 +16,7 @@ Claude loads the skill on its own when you ask it to:
 - write or refactor non-trivial code
 - review a pull request or code for quality
 - split a large function, class, or service
+- change or version an API, payload, or message format without breaking its callers
 - choose between a clever and a simple approach
 
 To call it by name, run `/unix-philosophy:unix-philosophy`.

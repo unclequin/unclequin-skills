@@ -113,3 +113,45 @@ Measure with `criterion` or `tasty-bench`, and profile with `cabal build --enabl
 ## Extensibility
 
 Use records with named fields so new fields don't break callers, hide constructors behind smart constructors, parse JSON with optional fields (`.:?`) and a version field, and follow the PVP for package versions.
+
+A version may add to the set of messages it accepts, never take from it:
+
+```haskell
+-- | Version 1 of the quote request.
+data QuoteV1 = QuoteV1 { sku :: String, quantity :: Int }
+
+-- | Version 2 adds an optional coupon; 'upgrade' turns every QuoteV1 into a QuoteV2.
+data QuoteV2 = QuoteV2 { request :: QuoteV1, coupon :: Maybe String }
+
+upgrade :: QuoteV1 -> QuoteV2
+upgrade q = QuoteV2 q Nothing
+```
+
+```haskell
+quoteV1 :: QuoteV1 -> Either String Int
+quoteV1 (QuoteV1 s n) = (* n) <$> lookupIn "sku" prices s
+
+quoteV2 :: QuoteV2 -> Either String Int
+quoteV2 (QuoteV2 (QuoteV1 s n) c) = do
+  total <- (* n) <$> lookupIn "sku" prices s
+  case c of
+    Nothing -> pure total
+    Just code -> do
+      pct <- lookupIn "coupon" percentOff code
+      pure (total - total * pct `div` 100)
+```
+
+Because `upgrade` is a total function the compiler accepts, every version 1 request is still a version 2 request. A test checks the other half, that each gets the same answer, with the old handler kept as the spec:
+
+```haskell
+v2AnswersEveryV1RequestTheSame :: Bool
+v2AnswersEveryV1RequestTheSame =
+  and
+    [ quoteV2 (upgrade q) == quoteV1 q
+    | s <- map fst prices
+    , n <- [1 .. 100]
+    , let q = QuoteV1 s n
+    ]
+```
+
+Making `coupon` a plain `String` would stop `upgrade` compiling, and renaming `quantity` would break every caller that names the field. Either is the signal for a new major version, served beside the old one.

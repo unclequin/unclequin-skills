@@ -121,3 +121,43 @@ Measure first: `timeit`, `cProfile` + `snakeviz`, `py-spy`, `pytest-benchmark`. 
 ## Extensibility
 
 Version payloads (`{"version": 1, "type": ..., "data": ...}`); use keyword-only arguments (`def f(*, timeout=...)`) so new options can be added without breaking callers.
+
+A version may add to the set of messages it accepts, never take from it:
+
+```python
+class QuoteV1(TypedDict):
+    """Version 1 of the quote request."""
+
+    sku: str
+    quantity: int
+
+
+class QuoteV2(QuoteV1):
+    """Version 2 adds an optional coupon, so every version 1 request is still valid."""
+
+    coupon: NotRequired[str]
+```
+
+```python
+def quote_v1(q: QuoteV1) -> int:
+    return lookup(PRICES, q["sku"], "sku") * q["quantity"]
+
+
+def quote_v2(q: QuoteV2) -> int:
+    total = lookup(PRICES, q["sku"], "sku") * q["quantity"]
+    if "coupon" not in q:
+        return total
+    return total - total * lookup(PERCENT_OFF, q["coupon"], "coupon") // 100
+```
+
+mypy checks half the rule, and only in annotated code: `QuoteV2(**q)` type-checks for every `QuoteV1`. At run time a `TypedDict` is a plain `dict`, so a payload from `json.loads` is checked by nothing until you validate it. A test checks the other half, that each request gets the same answer, with the old handler kept as the spec:
+
+```python
+def test_version_2_answers_every_version_1_request_the_same() -> None:
+    for sku in PRICES:
+        for quantity in range(1, 101):
+            q: QuoteV1 = {"sku": sku, "quantity": quantity}
+            assert quote_v2(QuoteV2(**q)) == quote_v1(q)
+```
+
+Making `coupon` required, or renaming `quantity`, would make mypy reject `QuoteV2(**q)`. That is the signal for a new major version, served beside the old one.
