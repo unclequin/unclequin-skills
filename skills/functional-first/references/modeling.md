@@ -67,7 +67,7 @@ Anything not in the table is rejected with an error that names the state and the
 
 Store the table as data (a map or a match on a closed set of variants), not as scattered `if` statements. One table, read by a pure `step(state, event)`, is the single source of truth for the code and for the tests.
 
-When states carry data (a policy's term number, an order's paid amount), keep the transition table for the *shape* of the lifecycle and let `step` compute the new data. Types can then make illegal data unrepresentable: only `issued` carries a term.
+When states carry data (a policy's term number, an order's paid amount), keep the transition table for the *shape* of the lifecycle and let `step` compute the new data. Types can then make illegal data unrepresentable: only `issued` carries a term. `types.md` shows how.
 
 ### Questions that find missing transitions
 

@@ -109,6 +109,102 @@ def replay(start: State, events: list[Event]) -> State:
 
 Raising is the Python idiom for an illegal step. Raise a specific exception type that callers can catch, never a bare `Exception`. When states carry data, make each state a frozen dataclass, keep `TRANSITIONS` keyed by the state's kind, and compute the new data in `step`.
 
+## Types: sets of values, sets of messages
+
+```python
+# Before: three flags and two optional fields allow 2³ combinations of flags,
+# each with or without an amount and a tracking number. Four are legal.
+@dataclass(frozen=True)
+class OrderRecord:
+    paid: bool
+    shipped: bool
+    cancelled: bool
+    amount: int | None = None
+    tracking: str | None = None
+```
+
+```python
+# An amount in integer cents, greater than zero. Only parse_amount makes one.
+Amount = NewType("Amount", int)
+
+
+class InvalidAmount(ValueError):
+    pass
+
+
+def parse_amount(raw: str) -> Amount:
+    """Parses raw input at the boundary; the core takes only Amount."""
+    if not (raw.isascii() and raw.isdigit() and int(raw) > 0):
+        raise InvalidAmount(f"invalid amount: {raw!r}")
+    return Amount(int(raw))
+```
+
+`NewType` exists only for the type checker: at run time an `Amount` is a plain `int`, and nothing stops a caller from writing `Amount(-5)`. What mypy does stop is passing a bare `int` where an `Amount` is expected, so keep `Amount(...)` calls inside `parse_amount` and let review catch the rest. The `isascii` check matters: `isdigit` alone is also true for other scripts' digits and for `"²"`.
+
+```python
+# After: one type per state, each holding only its own data.
+@dataclass(frozen=True)
+class Draft:
+    id: str
+
+
+@dataclass(frozen=True)
+class Paid:
+    id: str
+    amount: Amount
+
+
+@dataclass(frozen=True)
+class Shipped:
+    id: str
+    amount: Amount
+    tracking: str
+
+
+@dataclass(frozen=True)
+class Cancelled:
+    id: str
+
+
+type Order = Draft | Paid | Shipped | Cancelled
+
+
+def refund_due(order: Order) -> int:
+    """The amount to refund on cancellation: only money that was taken."""
+    match order:
+        case Draft() | Cancelled():
+            return 0
+        case Paid(amount=amount) | Shipped(amount=amount):
+            return amount
+        case _:
+            assert_never(order)
+```
+
+In the last case the type checker has narrowed `order` to `Never`, so adding a fifth state to `Order` makes `assert_never(order)` a type error until every `match` handles it. Python itself doesn't check: without mypy or pyright, the missing case only raises at run time.
+
+```python
+def accepts(state: State) -> list[Event]:
+    """The messages a state accepts, read from the transition table."""
+    return [e for e in Event if (state, e) in TRANSITIONS]
+
+
+# Typestate: each operation takes only the state that accepts it.
+def pay(order: Draft, amount: Amount) -> Paid:
+    return Paid(order.id, amount)
+
+
+def ship(order: Paid, tracking: str) -> Shipped:
+    return Shipped(order.id, order.amount, tracking)
+
+
+def cancel(order: Draft | Paid) -> Cancelled:
+    """Draft | Paid is the set of states that accept cancel.
+    Law: cancelling keeps the order's id."""
+    return Cancelled(order.id)
+```
+
+`Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `TRANSITIONS` instead of keeping a second list. The signatures turn the same table into a type check for code that drives an order step by step: mypy rejects `ship(draft, ...)`, though Python would run it. `Draft | Paid` is the set of states that accept `cancel`, and a union is closed: only its own members belong. Its law is a property test run against both (below). Events that arrive as data, from a queue or a database, still go through `step`.
+
 ## Check: properties
 
 With Hypothesis:
@@ -142,6 +238,41 @@ def test_lifecycle_invariants(events):
             assert allowed
             state = next_state
 ```
+
+```python
+def test_accepts_exactly_what_step_allows():
+    for state in State:
+        assert accepts(state) == [e for e in Event if allowed(state, e)]
+
+
+@given(st.text() | st.integers().map(str))
+def test_parse_amount_accepts_exactly_positive_whole_cents(raw):
+    valid = re.fullmatch(r"[0-9]+", raw) is not None and int(raw) > 0
+    try:
+        parse_amount(raw)
+    except InvalidAmount:
+        assert not valid
+    else:
+        assert valid
+
+
+def test_draft_cant_be_shipped() -> None:
+    draft = Draft("o1")
+    assert ship(pay(draft, parse_amount("500")), "T1") == Shipped("o1", Amount(500), "T1")
+
+    # mypy fails if this ever type-checks: the file turns on warn-unused-ignores.
+    def illegal() -> Shipped:
+        return ship(draft, "T1")  # type: ignore[arg-type]
+
+
+@given(st.text(), st.integers(min_value=1))
+def test_cancel_keeps_the_id(order_id: str, cents: int) -> None:
+    draft = Draft(order_id)
+    assert cancel(draft).id == order_id
+    assert cancel(pay(draft, Amount(cents))).id == order_id
+```
+
+With `# mypy: warn-unused-ignores` at the top of the test file, the `type: ignore` is the test: mypy reports it as unused, and fails, if `ship` ever accepts a `Draft`. The test needs a return annotation, since mypy skips the bodies of unannotated functions.
 
 Without Hypothesis, use a seeded `random.Random` in a plain `unittest` test. It finds the same bugs but doesn't shrink:
 

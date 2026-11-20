@@ -80,6 +80,86 @@ replay = foldM step
 
 `foldM` in the `Either` monad stops at the first `Left`. That's the whole "stop at the first illegal event" rule in one word. Deriving `Enum` and `Bounded` gives `[minBound .. maxBound]` as the list of all states and events, for tests and for reachability checks. When states carry data, give the constructors fields (`Issued Int`), and keep `transition` as the readable table of which moves are legal.
 
+## Types: sets of values, sets of messages
+
+```haskell
+-- Before: three flags and two optional fields allow 2³ combinations of flags,
+-- each with or without an amount and a tracking number. Four are legal.
+data OrderRecord = OrderRecord
+  { paid      :: Bool
+  , shipped   :: Bool
+  , cancelled :: Bool
+  , amount    :: Maybe Int64
+  , tracking  :: Maybe String
+  }
+```
+
+```haskell
+-- | An amount in integer cents, greater than zero. Only 'parseAmount' makes one.
+newtype Amount = Amount Int64
+  deriving (Eq, Show)
+
+cents :: Amount -> Int64
+cents (Amount n) = n
+
+-- | Parses raw input at the boundary; the core takes only 'Amount'.
+parseAmount :: String -> Either String Amount
+parseAmount raw = case readMaybe raw :: Maybe Integer of
+  Just n | all isDigit raw, n > 0, n <= toInteger (maxBound :: Int64) -> Right (Amount (fromInteger n))
+  _ -> Left ("invalid amount: " ++ show raw)
+```
+
+The module's export list names `Amount` without `(..)`, so other modules can't see its data constructor: they can't build one, pattern-match it open, or `coerce` an `Int64` into one. `parseAmount` is the only way in. Inside the module nothing stops you, so keep the module small. Parse through `Integer` and check the bound: `read` at `Int64` wraps on overflow without complaint.
+
+```haskell
+-- After: one type per state, each holding only its own data.
+newtype Draft = Draft String                  -- id
+data Paid = Paid String Amount                -- id, amount
+data Shipped = Shipped String Amount String   -- id, amount, tracking
+newtype Cancelled = Cancelled String          -- id
+
+data Order
+  = OrderDraft Draft
+  | OrderPaid Paid
+  | OrderShipped Shipped
+  | OrderCancelled Cancelled
+
+-- | The amount to refund on cancellation: only money that was taken.
+refundDue :: Order -> Int64
+refundDue (OrderDraft _)                 = 0
+refundDue (OrderCancelled _)             = 0
+refundDue (OrderPaid (Paid _ a))         = cents a
+refundDue (OrderShipped (Shipped _ a _)) = cents a
+```
+
+`-Wall` includes `-Wincomplete-patterns`, and `-Werror` makes it an error, so adding a fifth state fails the build at every function that doesn't handle it. A catch-all `_` clause switches that check off for the function, so leave it out of decisions over domain types.
+
+```haskell
+-- | The messages a state accepts, read from the transition table.
+accepts :: State -> [Event]
+accepts s = [e | e <- [minBound .. maxBound], isJust (transition s e)]
+
+-- Typestate: each operation takes only the states that accept it.
+pay :: Draft -> Amount -> Paid
+pay (Draft i) = Paid i
+
+ship :: Paid -> String -> Shipped
+ship (Paid i a) = Shipped i a
+
+-- | The states that accept cancel. A class is a set of types.
+-- Law: cancelling keeps the order's id.
+class Cancellable s where
+  cancel :: s -> Cancelled
+
+instance Cancellable Draft where
+  cancel (Draft i) = Cancelled i
+
+instance Cancellable Paid where
+  cancel (Paid i _) = Cancelled i
+```
+
+`Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `transition` instead of keeping a second list. The typed operations make the same table a compile-time check: `ship (Draft "o1") "T1"` is a type error, and `cancel` exists for exactly the types with an instance. Its law, not its type, defines the set, and one property runs the law against every instance (below). A class is open: any module that imports it can add an instance; to close it, give it a superclass the module doesn't export, so no other module can write the instance. Events that arrive as data, from a queue or a database, still go through `step`. A GADT indexed by `State` (with `DataKinds`) does the same in one type, at the cost of two extensions; one type per state is enough here.
+
 ## Check: properties
 
 With QuickCheck:
@@ -115,6 +195,37 @@ main = do
   results <- mapM quickCheckResult [property prop_derivedEqualsSpec, property prop_stepFollowsTable]
   unless (all isSuccess results) exitFailure
 ```
+
+```haskell
+prop_acceptsMatchesStep :: Bool
+prop_acceptsMatchesStep =
+  and [accepts s == [e | e <- [minBound .. maxBound], isRight (step s e)] | s <- [minBound .. maxBound]]
+
+-- | Mostly digit strings, so the interesting cases come up often.
+rawAmount :: Gen String
+rawAmount = oneof [arbitrary, listOf (elements "0123456789+- ")]
+
+prop_parseAcceptsPositiveWholeCents :: Property
+prop_parseAcceptsPositiveWholeCents = forAll rawAmount $ \raw ->
+  let n = read raw :: Integer
+      valid = not (null raw) && all isDigit raw && n > 0 && n <= toInteger (maxBound :: Int64)
+   in isRight (parseAmount raw) == valid
+
+prop_parseKeepsEveryAmount :: Property
+prop_parseKeepsEveryAmount = forAll (choose (1, maxBound)) $ \n ->
+  fmap cents (parseAmount (show n)) == Right (n :: Int64)
+
+-- | The law of 'Cancellable', run against every type in the set.
+prop_cancelKeepsTheId :: String -> Positive Int64 -> Bool
+prop_cancelKeepsTheId i (Positive n) = case parseAmount (show n) of
+  Right a -> keepsId i (Draft i) && keepsId i (pay (Draft i) a)
+  Left _ -> False
+
+keepsId :: Cancellable s => String -> s -> Bool
+keepsId i s = case cancel s of Cancelled i' -> i' == i
+```
+
+The first property is a plain `Bool`: the states are few enough to check them all. There is no test that `ship (Draft "o1")` fails to compile: doing that needs `-fdefer-type-errors` and an extra package such as `should-not-typecheck`, so rely on the build itself.
 
 `hedgehog` is the alternative, with generators as values and shrinking built in. Without either, an `iterate`-based seeded generator in a test executable works, without shrinking.
 

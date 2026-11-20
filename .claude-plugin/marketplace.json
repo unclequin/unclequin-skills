@@ -14,8 +14,8 @@
     {
       "name": "functional-first",
       "source": "./plugins/functional-first",
-      "version": "1.3.0",
-      "description": "Go from a real-world problem to correct code: say it, model it with sets and state machines, compose a pure spec, derive fast code, and check it with property tests. Go, TypeScript, Python, Java/Kotlin, Rust, Haskell, Elixir, Lean 4, and C"
+      "version": "1.4.0",
+      "description": "Go from a real-world problem to correct code: say it, model it with sets and state machines and the types that hold them, compose a pure spec, derive fast code, and check it with property tests. Go, TypeScript, Python, Java/Kotlin, Rust, Haskell, Elixir, Lean 4, and C"
     }
   ]
 }

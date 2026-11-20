@@ -125,6 +125,126 @@ theorem shipped_then_any_fails (e : Event) (es : List Event) :
 
 The state invariants from `modeling.md` are theorems here, proven by case analysis over every event, so no random testing is needed. When states carry data, give the constructors fields (`| issued (term : Nat)`) and prove the data invariants too, for example that a term never decreases.
 
+## Types: sets of values, sets of messages
+
+```lean
+-- Before: three flags and two optional fields allow 2³ combinations of flags,
+-- each with or without an amount and a tracking number. Four are legal.
+structure OrderRecord where
+  paid : Bool
+  shipped : Bool
+  cancelled : Bool
+  amount : Option Nat
+  tracking : Option String
+```
+
+```lean
+/-- An amount in integer cents, greater than zero. -/
+abbrev Amount := { n : Nat // n > 0 }
+
+/-- Parses raw input at the boundary; the core takes only `Amount`. -/
+def parseAmount (raw : String) : Except String Amount :=
+  match raw.toNat? with
+  | some n =>
+    if h : raw.all Char.isDigit ∧ n > 0 then .ok ⟨n, h.2⟩
+    else .error s!"invalid amount: {raw.quote}"
+  | none => .error s!"invalid amount: {raw.quote}"
+```
+
+A subtype is a value paired with a proof, so an `Amount` can't be built without showing `n > 0`. Anyone can write that proof for a literal (`⟨500, by decide⟩`), so the subtype guarantees the predicate, not that the value came through `parseAmount`. The `Char.isDigit` check is there because `String.toNat?` also accepts `_` separators.
+
+```lean
+/-- An order indexed by its state: each constructor holds only its own data. -/
+inductive OrderIn : State → Type where
+  | draft (id : String) : OrderIn .draft
+  | paid (id : String) (amount : Amount) : OrderIn .paid
+  | shipped (id : String) (amount : Amount) (tracking : String) : OrderIn .shipped
+  | cancelled (id : String) : OrderIn .cancelled
+
+/-- The amount to refund on cancellation: only money that was taken. -/
+def refundDue : OrderIn s → Nat
+  | .draft _ | .cancelled _ => 0
+  | .paid _ amount | .shipped _ amount _ => amount.val
+```
+
+Lean rejects a `match` that misses a constructor, so a fifth state fails the build at every function over `OrderIn`. The index is the `State` from the transition table, which ties the typed orders to the run-time lifecycle.
+
+```lean
+def allEvents : List Event := [.pay, .ship, .cancel]
+
+/-- The messages a state accepts, read from the transition table. -/
+def accepts (s : State) : List Event :=
+  allEvents.filter fun e => (transition s e).isSome
+
+-- Typestate: each operation takes only the state that accepts it.
+def pay : OrderIn .draft → Amount → OrderIn .paid
+  | .draft id, amount => .paid id amount
+
+def ship : OrderIn .paid → String → OrderIn .shipped
+  | .paid id amount, tracking => .shipped id amount tracking
+
+/-- Cancel asks the table itself: `decide` proves the move is in it, or the call fails.
+Law: cancelling keeps the order's id. -/
+def cancel (o : OrderIn s) (_ : transition s .cancel = some .cancelled := by decide) :
+    OrderIn .cancelled :=
+  .cancelled o.id
+```
+
+`Event` is the set of messages, and `accepts` reads one state's subset from `transition` instead of keeping a second list. `ship` takes only an `OrderIn .paid`. `cancel` takes an order in any state plus a proof that the table has the move, which `decide` fills in at the call site, so the table is the compile-time check too. Events that arrive as data still go through `step`.
+
+The laws are theorems, and "this must not compile" is a build check with `#check_failure`, which fails the build if its term elaborates:
+
+```lean
+theorem allEvents_complete (e : Event) : e ∈ allEvents := by
+  cases e <;> decide
+
+/-- A state accepts exactly the events `step` allows. -/
+theorem accepts_iff_step (s : State) (e : Event) :
+    e ∈ accepts s ↔ (step s e).toBool = true := by
+  cases s <;> cases e <;> decide
+
+/-- The law of `cancel`, for an order in any state that accepts it. -/
+theorem cancel_keeps_id (o : OrderIn s) (h : transition s .cancel = some .cancelled) :
+    (cancel o h).id = o.id := rfl
+
+/-- `parseAmount` accepts exactly the strings of digits whose value is positive. -/
+theorem parseAmount_ok_iff (raw : String) :
+    (parseAmount raw).toBool = true ↔
+      raw.all Char.isDigit = true ∧ ∃ n, raw.toNat? = some n ∧ n > 0 := by
+  unfold parseAmount
+  split
+  · rename_i n hn
+    split
+    · rename_i h
+      exact ⟨fun _ => ⟨h.1, n, hn, h.2⟩, fun _ => rfl⟩
+    · rename_i h
+      refine ⟨(nomatch ·), ?_⟩
+      rintro ⟨digits, m, hm, pos⟩
+      rw [hn] at hm
+      cases hm
+      exact absurd ⟨digits, pos⟩ h
+  · rename_i hn
+    refine ⟨(nomatch ·), ?_⟩
+    rintro ⟨_, m, hm, _⟩
+    rw [hn] at hm
+    cases hm
+
+/-- Every positive whole number of cents parses to itself. -/
+theorem parseAmount_repr (n : Nat) (h : n > 0) : parseAmount (Nat.repr n) = .ok ⟨n, h⟩ := by
+  have digits : (Nat.repr n).all Char.isDigit = true := by
+    simpa [String.all_bool_eq, Nat.toList_repr] using
+      fun c hc => Nat.isDigit_of_mem_toDigits (by omega) (by omega) hc
+  simp [parseAmount, digits, Nat.toNat?_repr, h]
+
+-- A draft can't be shipped, and a shipped order can't be cancelled.
+#guard_msgs (drop info) in
+#check_failure ship (.draft "o1") "T1"
+#guard_msgs (drop info) in
+#check_failure cancel (.shipped "o1" ⟨500, by decide⟩ "T1")
+```
+
+`allEvents_complete` is what makes `accepts` trustworthy: without it, an event left out of `allEvents` would vanish from every answer. `cancel_keeps_id` proves the law of `cancel` for every state that accepts it, where a property test would only sample. `Nat.toNat?_repr` lives in Std, so the file needs `import Std.Data.String.ToNat`. `#guard_msgs (drop info)` hides the expected type error from the build output.
+
 ## Tooling
 
 - `lake build` checks every proof and every `decide` example. A failing law fails the build.

@@ -7,7 +7,7 @@ A method for going from a real-world rule to correct code: write the clearest co
 The skill walks Claude through five steps:
 
 1. **Say it.** State the rule in one or two sentences of domain words, and settle each ambiguous word.
-2. **Model it.** Rules that select things become sets of named predicates; lifecycles become a state machine with one transition table.
+2. **Model it.** Rules that select things become sets of named predicates; lifecycles become a state machine with one transition table. Then the types hold the model: each type allows only legal values, input is parsed once at the boundary, and an object or process is described by the messages it accepts.
 3. **Compose it.** Small pure functions named in the domain's words, with effects (clock, database, network) kept in a thin outer shell.
 4. **Derive it.** Make it faster only when a measurement says so, one named transformation at a time.
 5. **Check it.** Property tests for the rule's laws, with the clear version as the oracle for the fast one.
@@ -20,6 +20,7 @@ Claude loads the skill on its own when you are:
 
 - implementing or fixing business rules, filters, reports, totals, or calculations
 - building workflows or entity lifecycles (orders, policies, tickets, subscriptions, approvals)
+- designing domain types, or the messages an object, process, or GenServer accepts
 - chasing a loop that gives wrong results
 - making correct code faster without changing what it does
 

@@ -10,7 +10,7 @@ common warnings
 library
   import:          warnings
   hs-source-dirs:  src
-  exposed-modules: Orders
+  exposed-modules: Orders, Types
   build-depends:   base, array
 
 test-suite properties
@@ -18,4 +18,11 @@ test-suite properties
   type:           exitcode-stdio-1.0
   hs-source-dirs: test
   main-is:        Main.hs
+  build-depends:  base, orders, QuickCheck
+
+test-suite types
+  import:         warnings
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is:        TypesMain.hs
   build-depends:  base, orders, QuickCheck

@@ -1,6 +1,6 @@
 ---
 name: functional-first
-description: Use when implementing or fixing business rules, filters, reports, totals, calculations, data transformations, workflows, or entity lifecycles (orders, policies, tickets, subscriptions, approvals), when a loop gives wrong results, or when correct code must be made faster without changing its behavior. Works for Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Elixir, Lean 4, and C.
+description: Use when implementing or fixing business rules, filters, reports, totals, calculations, data transformations, workflows, or entity lifecycles (orders, policies, tickets, subscriptions, approvals), when designing domain types or replacing flags, nullable fields, and raw strings with types, when defining the messages an object, process, or GenServer accepts, when a loop gives wrong results, or when correct code must be made faster without changing its behavior. Works for Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Elixir, Lean 4, and C.
 ---
 
 # Functional First
@@ -18,7 +18,7 @@ Run the steps the task needs. The "when" column decides.
 | Step | When | What you produce |
 |------|------|------------------|
 | 1. Say it | Always | One or two sentences in domain words, plus the ambiguous words and the reading you chose |
-| 2. Model it | The rule selects things → sets. Things change state over time → state machine. Neither → skip | A set expression or a transition table |
+| 2. Model it | The rule selects things → sets. Things change state over time → state machine. Neither → skip | A set expression or a transition table, then the types that hold it |
 | 3. Compose it | Always | Named pure functions composed so the top function reads like the sentence. This is the spec |
 | 4. Derive it | The spec is measured too slow, or the target needs another shape (C, a hot loop) | Faster code, reached by named transformations, with the spec kept |
 | 5. Check it | Always | Example tests, property tests from the model, and a spec-equals-derived property if step 4 ran |
@@ -37,6 +37,11 @@ Read `references/modeling.md`. Two tools:
 
 - **Sets for selection:** "and" is ∩, "or" is ∪, "except" is \, "all" is ∀, "any" is ∃. `Revenue(m) = Σ total(o) for o ∈ PaidIn(m) \ Refunded`.
 - **State machines for lifecycles:** a table of states, events, and allowed transitions. Anything not in the table is an error.
+
+Then make the types hold the model. Read `references/types.md` when you design a domain type, an object's or a process's interface, or the input a function accepts:
+
+- **Types hold the model.** A type names the set of values it allows: each state's data lives in its own case, and each constrained value (an amount, an IBAN) gets a type only its parser can build. An interface is the set of messages it accepts; where the language can say it, only the states that accept a message have the operation.
+- **Parse once, at the boundary.** The shell turns raw input into the narrow types; the core takes only them. A state's accepted messages are computed from the transition table, never kept in a second list.
 
 The model's laws and invariants become the property tests in step 5.
 
@@ -73,7 +78,7 @@ Use the language's property-testing library. Where none is available, a seeded r
 
 ## Language files
 
-Before writing code, read the file for the language in use, in `references/languages/`: `go.md`, `typescript.md` (also JavaScript), `python.md`, `java.md` (also Kotlin), `rust.md`, `haskell.md`, `elixir.md`, `lean4.md`, `c.md`. Each shows the pipeline idiom, a state machine as data, the error type for a step that can fail, the property-testing library, and what the compiler already derives for you.
+Before writing code, read the file for the language in use, in `references/languages/`: `go.md`, `typescript.md` (also JavaScript), `python.md`, `java.md` (also Kotlin), `rust.md`, `haskell.md`, `elixir.md`, `lean4.md`, `c.md`. Each shows the pipeline idiom, a state machine as data, the error type for a step that can fail, states and narrow types as the language's own types, the property-testing library, and what the compiler already derives for you.
 
 For another language, use its standard collection pipeline (or plain loops over named predicates), its sum type or enum for states, and its property-testing library.
 
@@ -87,4 +92,6 @@ For another language, use its standard collection pipeline (or plain loops over 
 | The spec-vs-fast comparison lives in a scratch script | Commit it as a property test |
 | Optimizing before measuring | Ship the composed version. Derive when a profile or benchmark points at it |
 | All five steps on a one-line change | Say, Compose, Check. Model only when there is a set or a lifecycle |
+| `status` plus nullable fields that only some statuses use | A sum type with each state's data inside its case |
+| The same validity check repeated in every function that takes the value | Parse once at the boundary into a narrow type; the core takes only that type |
 | States built by hand in tests | Reach them by replaying events through the public API, so tests can't create impossible states |
