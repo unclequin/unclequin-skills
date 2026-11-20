@@ -173,7 +173,8 @@ def pay : OrderIn .draft → Amount → OrderIn .paid
 def ship : OrderIn .paid → String → OrderIn .shipped
   | .paid id amount, tracking => .shipped id amount tracking
 
-/-- Cancel asks the table itself: `decide` proves the move is in it, or the call fails. -/
+/-- Cancel asks the table itself: `decide` proves the move is in it, or the call fails.
+Law: cancelling keeps the order's id. -/
 def cancel (o : OrderIn s) (_ : transition s .cancel = some .cancelled := by decide) :
     OrderIn .cancelled :=
   .cancelled o.id
@@ -185,6 +186,10 @@ theorem allEvents_complete (e : Event) : e ∈ allEvents := by
 theorem accepts_iff_step (s : State) (e : Event) :
     e ∈ accepts s ↔ (step s e).toBool = true := by
   cases s <;> cases e <;> decide
+
+/-- The law of `cancel`, for an order in any state that accepts it. -/
+theorem cancel_keeps_id (o : OrderIn s) (h : transition s .cancel = some .cancelled) :
+    (cancel o h).id = o.id := rfl
 
 /-- Terminal states accept nothing. -/
 theorem accepts_terminal : accepts .shipped = [] ∧ accepts .cancelled = [] := by

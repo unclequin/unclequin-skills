@@ -46,6 +46,13 @@ def test_draft_cant_be_shipped() -> None:
         return ship(draft, "T1")  # type: ignore[arg-type]
 
 
+@given(st.text(), st.integers(min_value=1))
+def test_cancel_keeps_the_id(order_id: str, cents: int) -> None:
+    draft = Draft(order_id)
+    assert cancel(draft).id == order_id
+    assert cancel(pay(draft, Amount(cents))).id == order_id
+
+
 def test_refund_due_is_the_money_taken() -> None:
     paid = pay(Draft("o1"), parse_amount("500"))
     assert [refund_due(o) for o in (Draft("o1"), paid, ship(paid, "T1"), cancel(paid))] == [0, 500, 500, 0]

@@ -1,4 +1,4 @@
-use orders::types::{accepts, refund_due, Amount, Draft, Order, EVENTS, STATES};
+use orders::types::{accepts, refund_due, Amount, Cancel, Draft, Order, Paid, EVENTS, STATES};
 use orders::{step, Event};
 use proptest::prelude::*;
 
@@ -35,4 +35,18 @@ proptest! {
     fn parse_keeps_every_positive_amount(n in 1..=u64::MAX) {
         prop_assert_eq!(n.to_string().parse::<Amount>().map(Amount::cents), Ok(n));
     }
+
+    /// The law of `Cancel`, run against every type in the set.
+    #[test]
+    fn cancel_keeps_the_id(id in "\\PC{0,12}", amount in 1..=u64::MAX) {
+        let amount: Amount = amount.to_string().parse().unwrap();
+        let draft = Draft { id: id.clone() };
+        let paid = Paid { id: id.clone(), amount };
+        prop_assert!(keeps_id(draft, &id));
+        prop_assert!(keeps_id(paid, &id));
+    }
+}
+
+fn keeps_id<T: Cancel>(order: T, id: &str) -> bool {
+    order.cancel().id == id
 }

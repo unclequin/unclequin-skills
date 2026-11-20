@@ -54,7 +54,11 @@ Write the set down once:
 - For a process or actor, it is one union type of every message it handles, beside its receive loop or its `handle_call` clauses.
 - For a lifecycle, the events in the transition table are the messages, and the table says which are accepted in each state: `accepts(s) = { e | (s, e) ∈ table }`. Compute it from the table, never keep a second list.
 
+A trait, interface, protocol, or type class turns this around: it names the set of types that answer its messages. `T: Cancel` reads "T is one of the types that accept `cancel`". The signatures alone don't define the set, because two types can share a signature and behave differently. The trait's laws do: `cancel` keeps the order's id, equality is reflexive and symmetric, an ordering is total. Write each law in the trait's doc comment, and check it with one property test run against every implementation, so a new implementation joins the set only by passing it.
+
 A subtype must be safe wherever its parent is used: it accepts at least the messages the parent accepts, and its answers stay within what the parent promised. A subclass that throws on an inherited method, or narrows what it accepts, breaks every caller that relied on the parent.
+
+Choose whether the set is open or closed. An open trait or interface lets any code add a member, which suits a plug-in point. A closed one (sealed, or not exported for others to implement) fixes the members, which suits states and other domain cases, where an outside member would be a state the table doesn't know.
 
 ## When the state decides the messages
 
@@ -73,6 +77,7 @@ The laws worth testing:
 
 - `accepts(s)` is exactly the set of events `e` for which `step(s, e)` succeeds.
 - A terminal state accepts the empty set.
+- Every implementation of a trait or interface passes the trait's laws: one property, run against each member of the set.
 - The narrow type's constructor accepts exactly the values the predicate allows: everything it accepts satisfies the predicate, and everything it rejects fails it.
 
 ## Where the set view stops

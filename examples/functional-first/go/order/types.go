@@ -95,4 +95,5 @@ func (p Paid) Ship(tracking string) Shipped { return Shipped{p.ID, p.Amount, tra
 func (p Paid) Cancel() Cancelled            { return Cancelled{p.ID} }
 
 // Cancellable is the set of states that accept cancel.
+// Law: cancelling keeps the order's id.
 type Cancellable interface{ Cancel() Cancelled }

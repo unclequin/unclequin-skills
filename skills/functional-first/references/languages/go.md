@@ -218,10 +218,11 @@ func (p Paid) Ship(tracking string) Shipped { return Shipped{p.ID, p.Amount, tra
 func (p Paid) Cancel() Cancelled            { return Cancelled{p.ID} }
 
 // Cancellable is the set of states that accept cancel.
+// Law: cancelling keeps the order's id.
 type Cancellable interface{ Cancel() Cancelled }
 ```
 
-A Go interface is a set of messages, and a type belongs to it by having the methods. So the method set of each state type is that state's messages: `draft.Ship(...)` doesn't compile, and `Cancellable` holds exactly `Draft` and `Paid`. `Accepts` reads the same sets from the table instead of keeping a second list. Events that arrive as data, from a queue or a database, still go through `Step`.
+A Go interface is a set of messages, and a type belongs to it by having the methods. So the method set of each state type is that state's messages: `draft.Ship(...)` doesn't compile, and `Cancellable` holds exactly `Draft` and `Paid`. Its law, not its signature, defines the set, and one property test runs the law against every member (below). The set is open: any type in any package with a `Cancel() Cancelled` method joins it; add an unexported method to the interface to close it. `Accepts` reads the same sets from the table instead of keeping a second list. Events that arrive as data, from a queue or a database, still go through `Step`.
 
 ## Check: properties with a seeded loop
 
@@ -291,7 +292,7 @@ func TestRevenueByMonthMatchesSpecRapid(t *testing.T) {
 
 `genOrder` is a `func(*rapid.T) Order` built from `rapid.Int64Range`, `rapid.IntRange`, and `rapid.Bool`.
 
-The typed package gets the same kind of checks. Go has no standard way to test that a line doesn't compile, so the last test checks instead that each state type's methods are exactly the events the table accepts:
+The typed package gets the same kind of checks. Go has no standard way to test that a line doesn't compile, so the third test checks instead that each state type's methods are exactly the events the table accepts:
 
 ```go
 func TestAcceptsMatchesStep(t *testing.T) {
@@ -343,6 +344,22 @@ func TestMethodsMatchTable(t *testing.T) {
 		}
 	}
 }
+
+// The law of Cancellable, run against every type in the set.
+func TestCancelKeepsTheID(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		id := rapid.String().Draw(t, "id")
+		amount, err := ParseAmount(strconv.FormatInt(rapid.Int64Range(1, math.MaxInt64).Draw(t, "cents"), 10))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !keepsID(Draft{id}, id) || !keepsID(Paid{id, amount}, id) {
+			t.Fatalf("cancelling an order with id %q changed its id", id)
+		}
+	})
+}
+
+func keepsID[T Cancellable](o T, id string) bool { return o.Cancel().ID == id }
 ```
 
 The parse property checks `ParseAmount` against an independent spec, `math/big` plus a regexp, over both arbitrary strings and strings that look like numbers, so signs, leading zeros and overflow all come up. `reflect` lists only exported methods, so the unexported `isOrder` doesn't count.

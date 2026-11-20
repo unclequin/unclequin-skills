@@ -183,7 +183,8 @@ def pay : OrderIn .draft → Amount → OrderIn .paid
 def ship : OrderIn .paid → String → OrderIn .shipped
   | .paid id amount, tracking => .shipped id amount tracking
 
-/-- Cancel asks the table itself: `decide` proves the move is in it, or the call fails. -/
+/-- Cancel asks the table itself: `decide` proves the move is in it, or the call fails.
+Law: cancelling keeps the order's id. -/
 def cancel (o : OrderIn s) (_ : transition s .cancel = some .cancelled := by decide) :
     OrderIn .cancelled :=
   .cancelled o.id
@@ -201,6 +202,10 @@ theorem allEvents_complete (e : Event) : e ∈ allEvents := by
 theorem accepts_iff_step (s : State) (e : Event) :
     e ∈ accepts s ↔ (step s e).toBool = true := by
   cases s <;> cases e <;> decide
+
+/-- The law of `cancel`, for an order in any state that accepts it. -/
+theorem cancel_keeps_id (o : OrderIn s) (h : transition s .cancel = some .cancelled) :
+    (cancel o h).id = o.id := rfl
 
 /-- `parseAmount` accepts exactly the strings of digits whose value is positive. -/
 theorem parseAmount_ok_iff (raw : String) :
@@ -238,7 +243,7 @@ theorem parseAmount_repr (n : Nat) (h : n > 0) : parseAmount (Nat.repr n) = .ok 
 #check_failure cancel (.shipped "o1" ⟨500, by decide⟩ "T1")
 ```
 
-`allEvents_complete` is what makes `accepts` trustworthy: without it, an event left out of `allEvents` would vanish from every answer. `Nat.toNat?_repr` lives in Std, so the file needs `import Std.Data.String.ToNat`. `#guard_msgs (drop info)` hides the expected type error from the build output.
+`allEvents_complete` is what makes `accepts` trustworthy: without it, an event left out of `allEvents` would vanish from every answer. `cancel_keeps_id` proves the law of `cancel` for every state that accepts it, where a property test would only sample. `Nat.toNat?_repr` lives in Std, so the file needs `import Std.Data.String.ToNat`. `#guard_msgs (drop info)` hides the expected type error from the build output.
 
 ## Tooling
 

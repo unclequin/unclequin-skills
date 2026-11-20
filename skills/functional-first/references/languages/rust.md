@@ -236,10 +236,6 @@ impl Draft {
             amount,
         }
     }
-
-    pub fn cancel(self) -> Cancelled {
-        Cancelled { id: self.id }
-    }
 }
 
 impl Paid {
@@ -250,14 +246,38 @@ impl Paid {
             tracking,
         }
     }
+}
+```
 
-    pub fn cancel(self) -> Cancelled {
+```rust
+/// The states that accept `cancel`: a set of types, closed by `Sealed`.
+/// Law: cancelling keeps the order's id.
+pub trait Cancel: sealed::Sealed {
+    fn cancel(self) -> Cancelled;
+}
+
+mod sealed {
+    pub trait Sealed {}
+    impl Sealed for super::Draft {}
+    impl Sealed for super::Paid {}
+}
+
+impl Cancel for Draft {
+    fn cancel(self) -> Cancelled {
+        Cancelled { id: self.id }
+    }
+}
+
+impl Cancel for Paid {
+    fn cancel(self) -> Cancelled {
         Cancelled { id: self.id }
     }
 }
 ```
 
-`Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `transition` instead of keeping a second list. The methods are the same table checked at compile time: `draft.ship(...)` doesn't compile, and because `pay` takes `self` by value, the draft is gone once it is paid. Events that arrive as data, from a queue or a database, still go through `step`.
+`cancel` is accepted by two states, so it is a trait: the set of types that answer it. Its signature doesn't define the set; its law does, and the law is a property test run against every member (below). A public trait is open, so any crate could add a type to the set. The private `Sealed` supertrait closes it, which is right for states: an outside type would be a state the table doesn't know. Leave a plug-in trait open.
+
+`Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `transition` instead of keeping a second list. The methods and the trait are the same table checked at compile time: `draft.ship(...)` and `shipped.cancel()` don't compile, and because `pay` takes `self` by value, the draft is gone once it is paid. Events that arrive as data, from a queue or a database, still go through `step`.
 
 ## Check: properties
 
@@ -329,6 +349,20 @@ proptest! {
     fn parse_keeps_every_positive_amount(n in 1..=u64::MAX) {
         prop_assert_eq!(n.to_string().parse::<Amount>().map(Amount::cents), Ok(n));
     }
+
+    /// The law of `Cancel`, run against every type in the set.
+    #[test]
+    fn cancel_keeps_the_id(id in "\\PC{0,12}", amount in 1..=u64::MAX) {
+        let amount: Amount = amount.to_string().parse().unwrap();
+        let draft = Draft { id: id.clone() };
+        let paid = Paid { id: id.clone(), amount };
+        prop_assert!(keeps_id(draft, &id));
+        prop_assert!(keeps_id(paid, &id));
+    }
+}
+
+fn keeps_id<T: Cancel>(order: T, id: &str) -> bool {
+    order.cancel().id == id
 }
 ```
 

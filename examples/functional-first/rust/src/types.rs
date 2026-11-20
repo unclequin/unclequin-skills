@@ -8,6 +8,15 @@
 //! let draft = Draft { id: "o1".to_string() };
 //! draft.ship("T1".to_string());
 //! ```
+//!
+//! A shipped order isn't in the set `Cancel` names, so neither must this:
+//!
+//! ```compile_fail
+//! use orders::types::{Amount, Cancel, Draft};
+//! let amount: Amount = "500".parse().unwrap();
+//! let draft = Draft { id: "o1".to_string() };
+//! draft.pay(amount).ship("T1".to_string()).cancel();
+//! ```
 
 use crate::{transition, Event, State};
 use std::fmt;
@@ -114,10 +123,6 @@ impl Draft {
             amount,
         }
     }
-
-    pub fn cancel(self) -> Cancelled {
-        Cancelled { id: self.id }
-    }
 }
 
 impl Paid {
@@ -128,8 +133,28 @@ impl Paid {
             tracking,
         }
     }
+}
 
-    pub fn cancel(self) -> Cancelled {
+/// The states that accept `cancel`: a set of types, closed by `Sealed`.
+/// Law: cancelling keeps the order's id.
+pub trait Cancel: sealed::Sealed {
+    fn cancel(self) -> Cancelled;
+}
+
+mod sealed {
+    pub trait Sealed {}
+    impl Sealed for super::Draft {}
+    impl Sealed for super::Paid {}
+}
+
+impl Cancel for Draft {
+    fn cancel(self) -> Cancelled {
+        Cancelled { id: self.id }
+    }
+}
+
+impl Cancel for Paid {
+    fn cancel(self) -> Cancelled {
         Cancelled { id: self.id }
     }
 }

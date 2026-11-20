@@ -198,10 +198,12 @@ def ship(order: Paid, tracking: str) -> Shipped:
 
 
 def cancel(order: Draft | Paid) -> Cancelled:
+    """Draft | Paid is the set of states that accept cancel.
+    Law: cancelling keeps the order's id."""
     return Cancelled(order.id)
 ```
 
-`Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `TRANSITIONS` instead of keeping a second list. The signatures turn the same table into a type check for code that drives an order step by step: mypy rejects `ship(draft, ...)`, though Python would run it. Events that arrive as data, from a queue or a database, still go through `step`.
+`Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `TRANSITIONS` instead of keeping a second list. The signatures turn the same table into a type check for code that drives an order step by step: mypy rejects `ship(draft, ...)`, though Python would run it. `Draft | Paid` is the set of states that accept `cancel`, and a union is closed: only its own members belong. Its law is a property test run against both (below). Events that arrive as data, from a queue or a database, still go through `step`.
 
 ## Check: properties
 
@@ -261,6 +263,13 @@ def test_draft_cant_be_shipped() -> None:
     # mypy fails if this ever type-checks: the file turns on warn-unused-ignores.
     def illegal() -> Shipped:
         return ship(draft, "T1")  # type: ignore[arg-type]
+
+
+@given(st.text(), st.integers(min_value=1))
+def test_cancel_keeps_the_id(order_id: str, cents: int) -> None:
+    draft = Draft(order_id)
+    assert cancel(draft).id == order_id
+    assert cancel(pay(draft, Amount(cents))).id == order_id
 ```
 
 With `# mypy: warn-unused-ignores` at the top of the test file, the `type: ignore` is the test: mypy reports it as unused, and fails, if `ship` ever accepts a `Draft`. The test needs a return annotation, since mypy skips the bodies of unannotated functions.

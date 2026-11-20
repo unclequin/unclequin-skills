@@ -147,6 +147,7 @@ ship :: Paid -> String -> Shipped
 ship (Paid i a) = Shipped i a
 
 -- | The states that accept cancel. A class is a set of types.
+-- Law: cancelling keeps the order's id.
 class Cancellable s where
   cancel :: s -> Cancelled
 
@@ -157,7 +158,7 @@ instance Cancellable Paid where
   cancel (Paid i _) = Cancelled i
 ```
 
-`Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `transition` instead of keeping a second list. The typed operations make the same table a compile-time check: `ship (Draft "o1") "T1"` is a type error, and `cancel` exists for exactly the types with an instance. Events that arrive as data, from a queue or a database, still go through `step`. A GADT indexed by `State` (with `DataKinds`) does the same in one type, at the cost of two extensions; one type per state is enough here.
+`Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `transition` instead of keeping a second list. The typed operations make the same table a compile-time check: `ship (Draft "o1") "T1"` is a type error, and `cancel` exists for exactly the types with an instance. Its law, not its type, defines the set, and one property runs the law against every instance (below). A class is open: any module that imports it can add an instance; to close it, give it a superclass the module doesn't export, so no other module can write the instance. Events that arrive as data, from a queue or a database, still go through `step`. A GADT indexed by `State` (with `DataKinds`) does the same in one type, at the cost of two extensions; one type per state is enough here.
 
 ## Check: properties
 
@@ -213,6 +214,15 @@ prop_parseAcceptsPositiveWholeCents = forAll rawAmount $ \raw ->
 prop_parseKeepsEveryAmount :: Property
 prop_parseKeepsEveryAmount = forAll (choose (1, maxBound)) $ \n ->
   fmap cents (parseAmount (show n)) == Right (n :: Int64)
+
+-- | The law of 'Cancellable', run against every type in the set.
+prop_cancelKeepsTheId :: String -> Positive Int64 -> Bool
+prop_cancelKeepsTheId i (Positive n) = case parseAmount (show n) of
+  Right a -> keepsId i (Draft i) && keepsId i (pay (Draft i) a)
+  Left _ -> False
+
+keepsId :: Cancellable s => String -> s -> Bool
+keepsId i s = case cancel s of Cancelled i' -> i' == i
 ```
 
 The first property is a plain `Bool`: the states are few enough to check them all. There is no test that `ship (Draft "o1")` fails to compile: doing that needs `-fdefer-type-errors` and an extra package such as `should-not-typecheck`, so rely on the build itself.

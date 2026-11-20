@@ -15,7 +15,9 @@ import net.jqwik.api.Example;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
+import net.jqwik.api.constraints.Positive;
 import orders.OrderTypes.Amount;
+import orders.OrderTypes.Cancellable;
 import orders.OrderTypes.Draft;
 import orders.OrderTypes.Paid;
 import orders.Orders.Event;
@@ -56,6 +58,18 @@ class OrderTypesProperties {
     Arbitrary<String> raw() {
         return Arbitraries.oneOf(Arbitraries.strings(), Arbitraries.longs().map(String::valueOf),
                 Arbitraries.strings().numeric().ofMaxLength(25));
+    }
+
+    /** The law of Cancellable, run against every type in the set. */
+    @Property
+    void cancelKeepsTheId(@ForAll String id, @ForAll @Positive long cents) {
+        Draft draft = new Draft(id);
+        assertTrue(keepsId(draft, id));
+        assertTrue(keepsId(draft.pay(new Amount(cents)), id));
+    }
+
+    static boolean keepsId(Cancellable order, String id) {
+        return order.cancel().id().equals(id);
     }
 
     @Example

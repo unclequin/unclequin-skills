@@ -160,10 +160,11 @@ export function accepts(state: State): Event[] {
 // Typestate: each operation takes only the state that accepts it.
 export const pay = (o: Draft, amount: Amount): Paid => ({ status: "paid", id: o.id, amount });
 export const ship = (o: Paid, tracking: string): Shipped => ({ ...o, status: "shipped", tracking });
+/** Draft | Paid is the set of states that accept cancel. Law: cancelling keeps the order's id. */
 export const cancel = (o: Draft | Paid): Cancelled => ({ status: "cancelled", id: o.id });
 ```
 
-`Event` is the set of messages the lifecycle understands, and `accepts` reads the subset for one state from the table instead of keeping a second list. The typed operations make the same table a compile-time check for code that drives an order step by step: `ship(draft, ...)` doesn't type-check. Events that arrive as data, from a queue or a database, still go through `step`.
+`Event` is the set of messages the lifecycle understands, and `accepts` reads the subset for one state from the table instead of keeping a second list. The typed operations make the same table a compile-time check for code that drives an order step by step: `ship(draft, ...)` doesn't type-check. `Draft | Paid` is the set of states that accept `cancel`, and a union is closed: only its own members belong. Its law is a property test run against both (below). Events that arrive as data, from a queue or a database, still go through `step`.
 
 ## Check: properties
 
@@ -213,6 +214,17 @@ test("a draft can't be shipped", () => {
   // @ts-expect-error a Draft is not a Paid, so ship rejects it at compile time
   const illegal = () => ship(draft, "T1");
   assert.equal(typeof illegal, "function");
+});
+
+test("cancelling keeps the order's id", () => {
+  fc.assert(fc.property(fc.string(), fc.integer({ min: 1, max: Number.MAX_SAFE_INTEGER }), (id, cents) => {
+    const amount = parseAmount(String(cents));
+    assert.ok(amount.ok);
+    const draft: Draft = { status: "draft", id };
+    for (const order of [draft, pay(draft, amount.value)]) {
+      assert.equal(cancel(order).id, id);
+    }
+  }));
 });
 ```
 

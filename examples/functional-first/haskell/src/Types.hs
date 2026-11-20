@@ -77,6 +77,7 @@ ship :: Paid -> String -> Shipped
 ship (Paid i a) = Shipped i a
 
 -- | The states that accept cancel. A class is a set of types.
+-- Law: cancelling keeps the order's id.
 class Cancellable s where
   cancel :: s -> Cancelled
 

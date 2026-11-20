@@ -286,6 +286,17 @@ With StreamData:
     end
   end
 
+  property "cancelling keeps the order's id" do
+    check all id <- string(:printable), cents <- positive_integer() do
+      {:ok, amount} = Amount.parse(Integer.to_string(cents))
+      draft = {:draft, id}
+
+      for order <- [draft, OrderState.pay(draft, amount)] do
+        assert OrderState.cancel(order) == {:cancelled, id}
+      end
+    end
+  end
+
   test "the server answers its messages from the table" do
     {:ok, order} = OrderServer.start_link(:draft)
 

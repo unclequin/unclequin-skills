@@ -187,7 +187,7 @@ public static long refundDue(Order order) {
 `Order` is sealed, so the compiler knows its four cases and the `switch` needs no `default`. Add a fifth record to `permits` and every `switch` over `Order` that doesn't handle it stops compiling.
 
 ```java
-/** The states that accept cancel. */
+/** The states that accept cancel. Law: cancelling keeps the order's id. */
 public sealed interface Cancellable permits Draft, Paid {
     String id();
 
@@ -202,7 +202,7 @@ public static List<Event> accepts(State state) {
 }
 ```
 
-The methods are the typestate: only `Paid` has `ship`, so `draft.ship("T1")` doesn't compile, and only the two `Cancellable` states have `cancel`. `Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `TRANSITIONS` instead of keeping a second list. Events that arrive as data, from a queue or a database, still go through `step`. When messages carry data of their own, make them a sealed interface of records instead of an enum, and the same exhaustive `switch` handles them.
+The methods are the typestate: only `Paid` has `ship`, so `draft.ship("T1")` doesn't compile, and only the two `Cancellable` states have `cancel`. `Cancellable` is sealed, so no other type can join the set, and its law is a property test run against both members (below). `Event` is the set of messages the lifecycle understands, and `accepts` reads one state's subset from `TRANSITIONS` instead of keeping a second list. Events that arrive as data, from a queue or a database, still go through `step`. When messages carry data of their own, make them a sealed interface of records instead of an enum, and the same exhaustive `switch` handles them.
 
 In Kotlin, a `sealed interface` of `data class` states with a `when` expression gives the same exhaustiveness check, and a `value class` with a private constructor and a parsing factory gives the narrow type.
 
@@ -267,6 +267,18 @@ void parseAcceptsExactlyThePositiveWholeNumbersOfCents(@ForAll("raw") String raw
 Arbitrary<String> raw() {
     return Arbitraries.oneOf(Arbitraries.strings(), Arbitraries.longs().map(String::valueOf),
             Arbitraries.strings().numeric().ofMaxLength(25));
+}
+
+/** The law of Cancellable, run against every type in the set. */
+@Property
+void cancelKeepsTheId(@ForAll String id, @ForAll @Positive long cents) {
+    Draft draft = new Draft(id);
+    assertTrue(keepsId(draft, id));
+    assertTrue(keepsId(draft.pay(new Amount(cents)), id));
+}
+
+static boolean keepsId(Cancellable order, String id) {
+    return order.cancel().id().equals(id);
 }
 ```
 

@@ -71,6 +71,22 @@ func TestMethodsMatchTable(t *testing.T) {
 	}
 }
 
+// The law of Cancellable, run against every type in the set.
+func TestCancelKeepsTheID(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		id := rapid.String().Draw(t, "id")
+		amount, err := ParseAmount(strconv.FormatInt(rapid.Int64Range(1, math.MaxInt64).Draw(t, "cents"), 10))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !keepsID(Draft{id}, id) || !keepsID(Paid{id, amount}, id) {
+			t.Fatalf("cancelling an order with id %q changed its id", id)
+		}
+	})
+}
+
+func keepsID[T Cancellable](o T, id string) bool { return o.Cancel().ID == id }
+
 func TestRefundDue(t *testing.T) {
 	amount, err := ParseAmount("500")
 	if err != nil {

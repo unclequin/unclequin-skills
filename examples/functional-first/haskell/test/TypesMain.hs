@@ -1,7 +1,7 @@
 module Main (main) where
 
 import Orders (step)
-import Types (Draft (..), Order (..), accepts, cents, parseAmount, pay, refundDue, ship)
+import Types (Cancellable (..), Cancelled (..), Draft (..), Order (..), accepts, cents, parseAmount, pay, refundDue, ship)
 import Control.Monad (unless)
 import Data.Char (isDigit)
 import Data.Either (isRight)
@@ -27,6 +27,15 @@ prop_parseKeepsEveryAmount :: Property
 prop_parseKeepsEveryAmount = forAll (choose (1, maxBound)) $ \n ->
   fmap cents (parseAmount (show n)) == Right (n :: Int64)
 
+-- | The law of 'Cancellable', run against every type in the set.
+prop_cancelKeepsTheId :: String -> Positive Int64 -> Bool
+prop_cancelKeepsTheId i (Positive n) = case parseAmount (show n) of
+  Right a -> keepsId i (Draft i) && keepsId i (pay (Draft i) a)
+  Left _ -> False
+
+keepsId :: Cancellable s => String -> s -> Bool
+keepsId i s = case cancel s of Cancelled i' -> i' == i
+
 -- | The typestate operations chain: a paid draft can be shipped.
 prop_paidDraftShips :: Bool
 prop_paidDraftShips =
@@ -40,5 +49,6 @@ main = do
     , property prop_parseAcceptsPositiveWholeCents
     , property prop_parseKeepsEveryAmount
     , property prop_paidDraftShips
+    , property prop_cancelKeepsTheId
     ]
   unless (all isSuccess results) exitFailure

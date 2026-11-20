@@ -86,4 +86,6 @@ def ship(order: Paid, tracking: str) -> Shipped:
 
 
 def cancel(order: Draft | Paid) -> Cancelled:
+    """Draft | Paid is the set of states that accept cancel.
+    Law: cancelling keeps the order's id."""
     return Cancelled(order.id)

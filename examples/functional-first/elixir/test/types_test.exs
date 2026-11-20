@@ -24,6 +24,17 @@ defmodule TypesTest do
     end
   end
 
+  property "cancelling keeps the order's id" do
+    check all id <- string(:printable), cents <- positive_integer() do
+      {:ok, amount} = Amount.parse(Integer.to_string(cents))
+      draft = {:draft, id}
+
+      for order <- [draft, OrderState.pay(draft, amount)] do
+        assert OrderState.cancel(order) == {:cancelled, id}
+      end
+    end
+  end
+
   test "refund_due is the amount only for money that was taken" do
     {:ok, amount} = Amount.parse("500")
     draft = {:draft, "o1"}

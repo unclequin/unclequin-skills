@@ -61,4 +61,5 @@ export function accepts(state: State): Event[] {
 // Typestate: each operation takes only the state that accepts it.
 export const pay = (o: Draft, amount: Amount): Paid => ({ status: "paid", id: o.id, amount });
 export const ship = (o: Paid, tracking: string): Shipped => ({ ...o, status: "shipped", tracking });
+/** Draft | Paid is the set of states that accept cancel. Law: cancelling keeps the order's id. */
 export const cancel = (o: Draft | Paid): Cancelled => ({ status: "cancelled", id: o.id });

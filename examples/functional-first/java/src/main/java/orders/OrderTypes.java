@@ -65,7 +65,7 @@ public final class OrderTypes {
         };
     }
 
-    /** The states that accept cancel. */
+    /** The states that accept cancel. Law: cancelling keeps the order's id. */
     public sealed interface Cancellable permits Draft, Paid {
         String id();
 
