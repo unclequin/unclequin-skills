@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   ValidationError, countLines, fetchOpaque, fetchTransparent, partner, portOrThrow, portSilent,
   retryPartner, shippingFee, signup, welcomed,
+  prices, quoteV1, quoteV2, type QuoteV1,
 } from "./examples.ts";
 
 test("signup parses, creates, then mails; bad input stops before the mail", async () => {
@@ -43,4 +44,18 @@ test("a bad PORT is NaN when silent and an error when checked", () => {
 
 test("shippingFee reads the table and falls back to 100", () => {
   assert.deepEqual(["BKK", "NORTH", "MARS"].map(shippingFee), [40, 80, 100]);
+});
+
+test("version 2 answers every version 1 request the same", () => {
+  for (const sku of Object.keys(prices)) {
+    for (let quantity = 1; quantity <= 100; quantity++) {
+      const q: QuoteV1 = { sku, quantity };
+      assert.equal(quoteV2(q), quoteV1(q));
+    }
+  }
+});
+
+test("version 2's new field changes only the new requests", () => {
+  assert.equal(quoteV2({ sku: "pear", quantity: 3, coupon: "TENOFF" }), 405);
+  assert.throws(() => quoteV2({ sku: "pear", quantity: 3, coupon: "BOGUS" }), /unknown coupon/);
 });

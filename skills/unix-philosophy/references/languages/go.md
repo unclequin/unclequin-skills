@@ -124,3 +124,64 @@ type Event struct {
 ```
 
 Use functional options or a config struct only when there are genuinely many optional settings.
+
+A version may add to the set of messages it accepts, never take from it:
+
+```go
+// QuoteV1 is version 1 of the quote request.
+type QuoteV1 struct {
+	SKU      string `json:"sku"`
+	Quantity int    `json:"quantity"`
+}
+
+// QuoteV2 embeds QuoteV1 and adds an optional coupon; "" means none.
+type QuoteV2 struct {
+	QuoteV1
+	Coupon string `json:"coupon,omitempty"`
+}
+```
+
+```go
+func quoteV1(q QuoteV1) (int, error) {
+	price, err := lookup(prices, q.SKU, "sku")
+	if err != nil {
+		return 0, err
+	}
+	return price * q.Quantity, nil
+}
+
+func quoteV2(q QuoteV2) (int, error) {
+	price, err := lookup(prices, q.SKU, "sku")
+	if err != nil {
+		return 0, err
+	}
+	total := price * q.Quantity
+	if q.Coupon == "" {
+		return total, nil
+	}
+	off, err := lookup(percentOff, q.Coupon, "coupon")
+	if err != nil {
+		return 0, err
+	}
+	return total - total*off/100, nil
+}
+```
+
+Because `QuoteV2` embeds `QuoteV1`, the compiler checks half the rule: `QuoteV2{QuoteV1: q}` turns every version 1 request into a version 2 one, and the embedded fields decode from the same JSON. A test checks the other half, that each gets the same answer, with the old handler kept as the spec:
+
+```go
+func TestVersion2AnswersEveryVersion1RequestTheSame(t *testing.T) {
+	for sku := range prices {
+		for quantity := 1; quantity <= 100; quantity++ {
+			q := QuoteV1{SKU: sku, Quantity: quantity}
+			got, gotErr := quoteV2(QuoteV2{QuoteV1: q})
+			want, wantErr := quoteV1(q)
+			if got != want || (gotErr == nil) != (wantErr == nil) {
+				t.Fatalf("%+v: got %d, %v; want %d, %v", q, got, gotErr, want, wantErr)
+			}
+		}
+	}
+}
+```
+
+Renaming `Quantity` would stop the test compiling. Making the coupon required has no type to break in Go, so it shows up as a failing test once `quoteV2` rejects `""`. Either is the signal for a new major version, served beside the old one.

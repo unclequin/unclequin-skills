@@ -16,6 +16,8 @@ Complexity is managed by breaking a system into parts small enough to understand
 
 **Fix:** split by responsibility. Each unit should have one reason to change.
 
+Describe each part from outside by the set of messages it accepts and what it answers to each: its functions, its endpoints, the messages a process receives. Its fields and tables are not part of that description. Callers depend on the message set alone, so everything behind it can change. A process, actor, or service makes a good unit when its message set is small and nobody else answers the same messages.
+
 ## 2. Clarity: clear beats clever
 
 Code is read far more often than it is written. Code that is hard to read is expensive to maintain and easy to break.
@@ -130,7 +132,11 @@ No single language, framework, or pattern fits every problem.
 
 Leave room for growth: versioned APIs, self-describing data formats, seams where change is likely. Don't implement imagined features.
 
-**Red flags (too little):** wire formats with no version field; positional binary formats; APIs that can't add optional fields.
+**Grow by adding.** An interface is the set of messages it accepts, and a payload type is a set of values. A new version is safe for every caller when it accepts every message the old version accepted and gives each the same answer. So a compatible change only adds: an optional field, a new message, a new endpoint. Removing or renaming a field, making an optional field required, narrowing a value's range, or changing an old answer shrinks the set, and breaks a caller you can't see. This is Liskov and Wing's substitution rule (1994), applied to versions instead of subclasses.
+
+Check it with one property: for any message the old version accepts, the new version accepts it and answers the same. Keep the old handler in the tests as the spec for that property. When a change has to shrink the set, it is a new major version, served beside the old one until the old one's callers have moved.
+
+**Red flags (too little):** wire formats with no version field; positional binary formats; APIs that can't add optional fields; a "minor" version that renames a field, makes one required, or changes what an old request returns.
 **Red flags (too much):** plugin systems with zero plugins; configuration for options nobody asked for.
 
 ---

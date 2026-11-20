@@ -10,7 +10,7 @@ common warnings
 library
   import:          warnings
   hs-source-dirs:  src
-  exposed-modules: Config, Order, Retry, Zone
+  exposed-modules: Config, Order, Quote, Retry, Zone
   build-depends:   base
 
 executable count-lines

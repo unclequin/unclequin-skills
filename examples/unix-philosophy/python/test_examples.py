@@ -10,6 +10,7 @@ from count_lines import count_lines
 from errors import OrderFetchError, fetch_opaque, fetch_transparent
 from fees import shipping_fee
 from invoice import User, make_invoice
+from quote import PRICES, QuoteV1, QuoteV2, quote_v1, quote_v2
 from signup import ValidationError, signup_after
 
 
@@ -76,3 +77,16 @@ def test_bad_port_is_silent_or_fatal(monkeypatch):
 
 def test_shipping_fee_reads_the_table():
     assert [shipping_fee(z) for z in ("BKK", "NORTH", "MARS")] == [40, 80, 100]
+
+
+def test_version_2_answers_every_version_1_request_the_same() -> None:
+    for sku in PRICES:
+        for quantity in range(1, 101):
+            q: QuoteV1 = {"sku": sku, "quantity": quantity}
+            assert quote_v2(QuoteV2(**q)) == quote_v1(q)
+
+
+def test_version_2_new_field_changes_only_the_new_requests():
+    assert quote_v2({"sku": "pear", "quantity": 3, "coupon": "TENOFF"}) == 405
+    with pytest.raises(KeyError, match="unknown coupon"):
+        quote_v2({"sku": "pear", "quantity": 3, "coupon": "BOGUS"})

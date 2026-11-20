@@ -1,6 +1,6 @@
 ---
 name: unix-philosophy
-description: Apply the Unix philosophy (Eric S. Raymond's 17 rules, McIlroy's "do one thing well", Rob Pike's rules on measurement and data) when designing, writing, refactoring, or reviewing software in any programming language. Use this skill whenever the user asks to design a module, service, CLI, API, library, or package; write or refactor non-trivial code; review a pull request or code for quality; split a large function, class, or service; decide between a clever and a simple approach; or asks about modularity, composability, simplicity, error handling, or "clean" design, even if they never mention Unix. Works for Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Elixir, Lean 4 (programs and proofs), and other languages.
+description: Apply the Unix philosophy (Eric S. Raymond's 17 rules, McIlroy's "do one thing well", Rob Pike's rules on measurement and data) when designing, writing, refactoring, or reviewing software in any programming language. Use this skill whenever the user asks to design a module, service, CLI, API, library, or package; write or refactor non-trivial code; review a pull request or code for quality; split a large function, class, or service; change or version an API, payload, or message format; decide between a clever and a simple approach; or asks about modularity, composability, simplicity, error handling, or "clean" design, even if they never mention Unix. Works for Go, TypeScript/JavaScript, Python, Java/Kotlin, Rust, Haskell, Elixir, Lean 4 (programs and proofs), and other languages.
 ---
 
 # Unix Philosophy for Software Development
@@ -70,7 +70,7 @@ For a language without a reference file, answer these questions from that langua
 ### When designing (module, service, package, class, CLI, API)
 
 1. **State the one job.** Write one sentence describing what this unit does. If the sentence needs "and", consider splitting it.
-2. **Design the interface first.** Keep it small, ideally one to three operations. Accept the most general input type that works; return specific, well-defined results.
+2. **Design the interface first.** Keep it small, ideally one to three operations. Accept the most general input type that works; return specific, well-defined results. The interface is the set of messages the unit accepts and what it answers to each. A new version only adds: test that it answers every old request the same, with the old handler kept as the spec.
 3. **Pick the data shape before the algorithm.** Ask what data structure would make the logic obvious. Tables, maps, and config often replace branching code.
 4. **Separate policy from mechanism.** Business rules and configuration ("what") live apart from the engine that executes them ("how"), so either can change alone.
 5. **Plan for composition.** Prefer plain, standard formats (text, JSON, stdin/stdout, HTTP, the language's standard abstractions) so other tools and languages can consume the output.
@@ -114,6 +114,7 @@ Order findings by impact (correctness and failure handling first, style last). A
 - Hand-written repetitive boilerplate (mocks, DTOs, serializers, API clients) → Generation
 - Optimization without a benchmark; complex caching before measuring → Optimization
 - Config options, hooks, or generics for imagined future needs → Simplicity vs. Extensibility (keep the door open, don't build the room)
+- A new version of an API or payload that removes, renames, or requires a field, or answers an old request differently → Extensibility
 
 ## Communicating with the user
 

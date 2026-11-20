@@ -110,3 +110,46 @@ Measure first with JMH for microbenchmarks and Java Flight Recorder / async-prof
 ## Extensibility
 
 Version API payloads and events; add optional fields; keep public APIs small, because every public method is a long-term commitment.
+
+A version may add to the set of messages it accepts, never take from it:
+
+```java
+/** Version 1 of the quote request. */
+record QuoteV1(String sku, int quantity) {}
+
+/** Version 2 adds an optional coupon; every QuoteV1 converts to a QuoteV2 with none. */
+record QuoteV2(String sku, int quantity, Optional<String> coupon) {
+    static QuoteV2 from(QuoteV1 q) {
+        return new QuoteV2(q.sku(), q.quantity(), Optional.empty());
+    }
+}
+```
+
+```java
+static int quoteV1(QuoteV1 q) {
+    return lookup(PRICES, q.sku(), "sku") * q.quantity();
+}
+
+static int quoteV2(QuoteV2 q) {
+    int total = lookup(PRICES, q.sku(), "sku") * q.quantity();
+    return q.coupon()
+        .map(coupon -> total - total * lookup(PERCENT_OFF, coupon, "coupon") / 100)
+        .orElse(total);
+}
+```
+
+The two records are unrelated types, so the compiler checks only that `from` can build a `QuoteV2` from every `QuoteV1`. A test checks that each gets the same answer, with the old handler kept as the spec:
+
+```java
+@Test
+void version2AnswersEveryVersion1RequestTheSame() {
+    for (String sku : PRICES.keySet()) {
+        for (int quantity = 1; quantity <= 100; quantity++) {
+            var q = new QuoteV1(sku, quantity);
+            assertEquals(quoteV1(q), quoteV2(QuoteV2.from(q)));
+        }
+    }
+}
+```
+
+Making `coupon` a required `String`, or renaming `quantity`, would stop `from` or the test compiling. That is the signal for a new major version, served beside the old one.

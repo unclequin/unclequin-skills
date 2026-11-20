@@ -138,3 +138,64 @@ Always measure release builds (`cargo build --release`). Benchmark with `criteri
 ## Extensibility
 
 Mark public enums and structs `#[non_exhaustive]` when new variants or fields are likely. Use `#[serde(default)]` and a version field in payloads. Follow semver for crates.
+
+A version may add to the set of messages it accepts, never take from it:
+
+```rust
+/// Version 1 of the quote request.
+pub struct QuoteV1 {
+    pub sku: String,
+    pub quantity: u32,
+}
+
+/// Version 2 adds an optional coupon; every `QuoteV1` converts to one with none.
+pub struct QuoteV2 {
+    pub sku: String,
+    pub quantity: u32,
+    pub coupon: Option<String>,
+}
+
+impl From<QuoteV1> for QuoteV2 {
+    fn from(q: QuoteV1) -> Self {
+        QuoteV2 {
+            sku: q.sku,
+            quantity: q.quantity,
+            coupon: None,
+        }
+    }
+}
+```
+
+```rust
+pub fn quote_v1(q: &QuoteV1) -> anyhow::Result<u32> {
+    Ok(lookup(PRICES, &q.sku, "sku")? * q.quantity)
+}
+
+pub fn quote_v2(q: &QuoteV2) -> anyhow::Result<u32> {
+    let total = lookup(PRICES, &q.sku, "sku")? * q.quantity;
+    match &q.coupon {
+        None => Ok(total),
+        Some(coupon) => Ok(total - total * lookup(PERCENT_OFF, coupon, "coupon")? / 100),
+    }
+}
+```
+
+The two structs are separate types, so the compiler checks only that the `From` impl can build a `QuoteV2` from every `QuoteV1`; on the wire, `#[serde(default)]` on `coupon` does the same for old payloads. A test checks that each request gets the same answer, with the old handler kept as the spec:
+
+```rust
+#[test]
+fn version_2_answers_every_version_1_request_the_same() {
+    for (sku, _) in PRICES {
+        for quantity in 1..=100 {
+            let q = QuoteV1 {
+                sku: sku.to_string(),
+                quantity,
+            };
+            let expected = quote_v1(&q).unwrap();
+            assert_eq!(quote_v2(&q.into()).unwrap(), expected);
+        }
+    }
+}
+```
+
+Making `coupon` a required `String`, or renaming `quantity`, would stop the `From` impl or the test compiling. That is the signal for a new major version, served beside the old one.

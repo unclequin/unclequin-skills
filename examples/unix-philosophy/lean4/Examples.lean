@@ -71,3 +71,37 @@ def Zone.fee : Zone → Nat
   | .other => 100
 
 example : [Zone.bkk, .central, .north, .other].map Zone.fee = [40, 60, 80, 100] := by decide
+
+/-- Version 1 of the quote request. -/
+structure QuoteV1 where
+  sku : String
+  quantity : Nat
+
+/-- Version 2 adds a coupon that defaults to none, so every QuoteV1 is still a QuoteV2. -/
+structure QuoteV2 extends QuoteV1 where
+  coupon : Option String := none
+
+instance : Coe QuoteV1 QuoteV2 := ⟨fun q => { toQuoteV1 := q }⟩
+
+def prices : List (String × Nat) := [("apple", 100), ("pear", 150)]
+def percentOff : List (String × Nat) := [("TENOFF", 10)]
+
+def lookupIn (what : String) (table : List (String × Nat)) (key : String) : Except String Nat :=
+  match table.lookup key with
+  | some value => .ok value
+  | none => .error s!"unknown {what}: {key}"
+
+def quoteV1 (q : QuoteV1) : Except String Nat := do
+  return (← lookupIn "sku" prices q.sku) * q.quantity
+
+def quoteV2 (q : QuoteV2) : Except String Nat := do
+  let total := (← lookupIn "sku" prices q.sku) * q.quantity
+  match q.coupon with
+  | none => return total
+  | some code => return total - total * (← lookupIn "coupon" percentOff code) / 100
+
+theorem quoteV2_answers_every_v1_request_the_same (q : QuoteV1) :
+    quoteV2 q = quoteV1 q := rfl
+
+#guard quoteV2 { sku := "pear", quantity := 3, coupon := some "TENOFF" } matches .ok 405
+#guard quoteV2 { sku := "pear", quantity := 3, coupon := some "BOGUS" } matches .error _

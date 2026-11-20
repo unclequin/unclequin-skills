@@ -132,3 +132,47 @@ Measure with Benchee and profile with `mix profile.tprof` or `:eprof`. Common re
 ## Extensibility
 
 Give structs defaults so new fields don't break callers, accept keyword options (`opts \\ []`) for new behaviour, define behaviours for plug-in points, and follow semantic versioning for Hex packages.
+
+A version may add to the set of messages it accepts, never take from it:
+
+```elixir
+  @typedoc "Version 1 of the quote request."
+  @type v1 :: %{sku: String.t(), quantity: pos_integer()}
+
+  @typedoc "Version 2 adds an optional coupon, so every v1 map is still a v2 map."
+  @type v2 :: %{
+          required(:sku) => String.t(),
+          required(:quantity) => pos_integer(),
+          optional(:coupon) => String.t()
+        }
+```
+
+```elixir
+  @spec quote_v1(v1()) :: pos_integer()
+  def quote_v1(%{sku: sku, quantity: quantity}), do: Map.fetch!(@prices, sku) * quantity
+
+  @spec quote_v2(v2()) :: pos_integer()
+  def quote_v2(%{sku: sku, quantity: quantity} = request) do
+    total = Map.fetch!(@prices, sku) * quantity
+
+    case Map.fetch(request, :coupon) do
+      :error -> total
+      {:ok, coupon} -> total - div(total * Map.fetch!(@percent_off, coupon), 100)
+    end
+  end
+```
+
+The compiler checks none of this: the `optional(:coupon)` key says every v1 map is a v2 map, and Dialyzer can hold callers to the specs, but nothing stops a build. A test checks both halves, that each version 1 request is still accepted and gets the same answer, with the old handler kept as the spec:
+
+```elixir
+  test "version 2 answers every version 1 request the same" do
+    for sku <- Pricing.skus(), quantity <- 1..100 do
+      request = %{sku: sku, quantity: quantity}
+      assert Pricing.quote_v2(request) == Pricing.quote_v1(request)
+    end
+  end
+```
+
+A `GenServer` works the same way: the messages its `handle_call` clauses match are its message set. A new version may add a clause, such as `{:quote, sku, quantity, coupon}`, but must keep every old clause, such as `{:quote, sku, quantity}`, matching and replying as before; the same test, run through `GenServer.call`, checks it.
+
+Making `coupon` required, or renaming `quantity`, would make the old requests fail to match, and the test would fail. That is the signal for a new major version, served beside the old one.
