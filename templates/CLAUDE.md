@@ -32,7 +32,7 @@ Express every rule in the idioms of the language at hand, the way its own standa
 
 ## Between services
 
-- Version payloads that cross a service boundary, and generate clients and types from one source of truth (OpenAPI, protobuf, database schema).
+- Version payloads that cross a service boundary, and generate clients and types from one source of truth (OpenAPI, protobuf, database schema). A new version only adds: test that it answers every old request the same, with the old handler kept as the spec.
 
 ## Review
 

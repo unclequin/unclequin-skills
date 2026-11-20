@@ -239,7 +239,7 @@ List the names of the skills available to you, one per line.
 
 Load the template one way, imported globally or copied into the project (Option A), and install both skills (Option B). CLAUDE.md keeps the core rules active in every session and tells Claude which skill to use for which part of a task. The skills add the full workflow, per-language examples, and the review format when the task calls for them.
 
-The template covers both skills in about 650 words. If a project only needs one, delete the other's section ("Building a feature" is functional-first; the rest is unix-philosophy) and its name in the first paragraph, to save context in every session.
+The template covers both skills in about 700 words. If a project only needs one, delete the other's section ("Building a feature" is functional-first; the rest is unix-philosophy) and its name in the first paragraph, to save context in every session.
 
 ## Review: standards file and checks
 

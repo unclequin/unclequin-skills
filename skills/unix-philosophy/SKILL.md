@@ -70,7 +70,7 @@ For a language without a reference file, answer these questions from that langua
 ### When designing (module, service, package, class, CLI, API)
 
 1. **State the one job.** Write one sentence describing what this unit does. If the sentence needs "and", consider splitting it.
-2. **Design the interface first.** Keep it small, ideally one to three operations. Accept the most general input type that works; return specific, well-defined results. The interface is the set of messages the unit accepts and what it answers to each; a later version may add to that set but never take from it or change an old answer.
+2. **Design the interface first.** Keep it small, ideally one to three operations. Accept the most general input type that works; return specific, well-defined results. The interface is the set of messages the unit accepts and what it answers to each. A new version only adds: test that it answers every old request the same, with the old handler kept as the spec.
 3. **Pick the data shape before the algorithm.** Ask what data structure would make the logic obvious. Tables, maps, and config often replace branching code.
 4. **Separate policy from mechanism.** Business rules and configuration ("what") live apart from the engine that executes them ("how"), so either can change alone.
 5. **Plan for composition.** Prefer plain, standard formats (text, JSON, stdin/stdout, HTTP, the language's standard abstractions) so other tools and languages can consume the output.
